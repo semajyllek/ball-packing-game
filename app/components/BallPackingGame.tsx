@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { RotateCcw } from 'lucide-react';
 
-const BallFillGame = () => {
+const BallPackingGame = () => {
   const [balls, setBalls] = useState<any[]>([]);
   const [fillPercentage, setFillPercentage] = useState(0);
   const [gameWon, setGameWon] = useState(false);
@@ -306,4 +306,4 @@ const BallFillGame = () => {
   );
 };
 
-export default BallFillGame;
+export default BallPackingGame;
