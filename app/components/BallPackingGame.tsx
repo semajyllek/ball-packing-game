@@ -2,8 +2,20 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { RotateCcw } from 'lucide-react';
 
+
+interface Ball {
+  id: number;  
+  x: number;
+  y: number;
+  radius: number;
+  velX: number;
+  velY: number;
+  color: string;
+}
+
+
 const BallPackingGame = () => {
-  const [balls, setBalls] = useState<any[]>([]);
+  const [balls, setBalls] = useState<Ball[]>([]);
   const [fillPercentage, setFillPercentage] = useState(0);
   const [gameWon, setGameWon] = useState(false);
   const [selectedVertex, setSelectedVertex] = useState(0);
