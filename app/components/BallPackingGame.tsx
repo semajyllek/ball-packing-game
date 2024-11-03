@@ -142,7 +142,7 @@ const BallPackingGame = () => {
   };
 
   const findNearestEdgePoint = (point: number[]) => {
-    let nearestPoint = [...point];
+    const nearestPoint = [...point];
     let moved = false;
     const step = 0.5;
     
@@ -247,7 +247,7 @@ const BallPackingGame = () => {
         if (requestRef.current) cancelAnimationFrame(requestRef.current);
       };
     }
-  }, [balls.length, gameWon]);
+  }, [balls.length, gameWon, findNearestEdgePoint, triangles]);
 
   return (
     <div className="w-full max-w-4xl mx-auto p-4">
