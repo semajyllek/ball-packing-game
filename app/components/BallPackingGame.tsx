@@ -27,40 +27,75 @@ const BallPackingGame = () => {
   const containerRef = useRef<HTMLDivElement>(null);
 
 
-
   const generateShape = () => {
     // Define canvas dimensions
     const width = 400;
     const height = 400;
     
-    // Generate vertices using cellular automata
-    const newVertices = generateCAShape(width, height);
-    
-    // Ensure we have enough vertices for a valid shape
-    if (newVertices.length < 3) {
-      // Fallback to a simple triangle if CA fails to generate enough vertices
-      const fallbackVertices = [
-        [200, 100],
-        [100, 300],
-        [300, 300]
-      ];
-      setVertices(fallbackVertices);
-      setTriangles([[fallbackVertices[0], fallbackVertices[1], fallbackVertices[2]]]);
+    try {
+      // Generate vertices using cellular automata
+      const newVertices = generateCAShape(width, height);
+      
+      console.log('Generated vertices:', newVertices); // Debug log
+  
+      // Validate vertices
+      if (!newVertices || newVertices.length < 3) {
+        console.log('Not enough vertices, using fallback shape');
+        throw new Error('Insufficient vertices');
+      }
+  
+      // Ensure all vertices are valid numbers
+      const validVertices = newVertices.filter(v => 
+        Array.isArray(v) && 
+        v.length === 2 && 
+        !isNaN(v[0]) && 
+        !isNaN(v[1]) &&
+        isFinite(v[0]) && 
+        isFinite(v[1])
+      );
+  
+      if (validVertices.length < 3) {
+        console.log('Invalid vertices detected, using fallback shape');
+        throw new Error('Invalid vertices');
+      }
+  
+      // Create triangles from the vertices
+      const newTriangles = triangulate(validVertices);
+  
+      if (!newTriangles || newTriangles.length === 0) {
+        console.log('Triangulation failed, using fallback shape');
+        throw new Error('Triangulation failed');
+      }
+  
+      // Update state with new shape
+      setVertices(validVertices);
+      setTriangles(newTriangles);
       setSelectedVertex(0);
-      return;
+  
+    } catch (error) {
+      console.log('Error generating shape:', error);
+      // Fallback to a simple hexagon
+      const fallbackVertices = [
+        [200, 100], // top
+        [300, 150], // top right
+        [300, 250], // bottom right
+        [200, 300], // bottom
+        [100, 250], // bottom left
+        [100, 150], // top left
+      ];
+  
+      const centerPoint = [200, 200];
+      const fallbackTriangles = fallbackVertices.map((vertex, i) => {
+        const nextVertex = fallbackVertices[(i + 1) % fallbackVertices.length];
+        return [centerPoint, vertex, nextVertex];
+      });
+  
+      setVertices(fallbackVertices);
+      setTriangles(fallbackTriangles);
+      setSelectedVertex(0);
     }
-  
-    // Create triangles from the vertices
-    const newTriangles = triangulate(newVertices);
-  
-    // Update state with new shape
-    setVertices(newVertices);
-    setTriangles(newTriangles);
-    setSelectedVertex(0);  // Reset selected vertex to first one
-  
-    // Log shape info for debugging
-    console.log(`Generated shape with ${newVertices.length} vertices and ${newTriangles.length} triangles`);
   };
+
 
   // Call generateShape on first render and when resetting
   useEffect(() => {
