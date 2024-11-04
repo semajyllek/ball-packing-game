@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { RotateCcw } from 'lucide-react';
 import { generateCAShape } from './shapes/CellularShape';
 import { triangulate } from './shapes/PolygonUtils';
@@ -167,8 +167,8 @@ const BallPackingGame = () => {
     return inside;
   };
 
-  const findNearestEdgePoint = (point: number[]) => {
-    const nearestPoint = [...point];
+  const findNearestEdgePoint = useCallback((point: number[]) => {
+    let nearestPoint = [...point];
     let moved = false;
     const step = 0.5;
     
@@ -186,8 +186,7 @@ const BallPackingGame = () => {
     }
     
     return { point: nearestPoint, bounced: moved };
-  };
-
+  }, [vertices, isPointInPolygon]);
 
   const bounceFactor = 0.5;
 

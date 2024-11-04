@@ -136,38 +136,6 @@ const defaultShape = (): number[][] => [
   [200, 100], [300, 200], [200, 300], [100, 200]
 ];
 
-const simplifyBoundary = (points: number[][]): number[][] => {
-  if (points.length <= 8) return points;
-  
-  const simplified: number[][] = [];
-  const threshold = 20; // Minimum distance between points
-  
-  // Always keep the first point
-  simplified.push(points[0]);
-  
-  for (let i = 1; i < points.length; i++) {
-    const lastPoint = simplified[simplified.length - 1];
-    const dx = points[i][0] - lastPoint[0];
-    const dy = points[i][1] - lastPoint[1];
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    
-    if (distance > threshold) {
-      simplified.push(points[i]);
-    }
-  }
-
-  // Ensure the shape is closed
-  const first = simplified[0];
-  const last = simplified[simplified.length - 1];
-  const dx = first[0] - last[0];
-  const dy = first[1] - last[1];
-  if (Math.sqrt(dx * dx + dy * dy) > threshold) {
-    simplified.push(simplified[0]);
-  }
-
-  return simplified;
-};
-
 const countNeighbors = (grid: Grid, x: number, y: number): number => {
   let count = 0;
   for (let i = -1; i <= 1; i++) {
