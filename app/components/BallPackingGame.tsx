@@ -153,8 +153,7 @@ const BallPackingGame = () => {
     setSelectedVertex(index);
   };
 
-  // Your existing isPointInPolygon and findNearestEdgePoint functions remain the same
-  const isPointInPolygon = (point: number[]) => {
+  const isPointInPolygon = useCallback((point: number[]) => {
     let inside = false;
     for (let i = 0, j = vertices.length - 1; i < vertices.length; j = i++) {
       const xi = vertices[i][0], yi = vertices[i][1];
@@ -165,10 +164,12 @@ const BallPackingGame = () => {
       if (intersect) inside = !inside;
     }
     return inside;
-  };
+  }, [vertices]);
+
+  
 
   const findNearestEdgePoint = useCallback((point: number[]) => {
-    let nearestPoint = [...point];
+    const nearestPoint = [...point];
     let moved = false;
     const step = 0.5;
     
