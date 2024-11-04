@@ -80,7 +80,7 @@ export const generateCAShape = (width: number, height: number): number[][] => {
     [1, 0], [1, -1], [0, -1], [-1, -1]
   ];
   
-  let startPoint = `${current[0]},${current[1]}`;
+  const startPoint = `${current[0]},${current[1]}`;
   do {
     const [i, j] = current;
     const key = `${i},${j}`;
