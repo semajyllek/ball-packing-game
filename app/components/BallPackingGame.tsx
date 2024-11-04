@@ -273,7 +273,7 @@ const BallPackingGame = () => {
         if (requestRef.current) cancelAnimationFrame(requestRef.current);
       };
     }
-  }, [balls.length, gameWon, findNearestEdgePoint, triangles]);
+  }, [balls.length, gameWon, findNearestEdgePoint, triangles, balls, bounceFactor]);
 
   return (
     <div className="w-full max-w-4xl mx-auto p-4">
