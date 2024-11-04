@@ -1,6 +1,8 @@
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
 import { RotateCcw } from 'lucide-react';
+import { generateCAShape } from './shapes/CellularShape';
+import { triangulate } from './shapes/PolygonUtils';
 
 
 interface Ball {
@@ -24,51 +26,40 @@ const BallPackingGame = () => {
   const requestRef = useRef<number>();
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Function to generate a random polygon
+
+
   const generateShape = () => {
-    const centerX = 200;
-    const centerY = 200;
-    const minPoints = 5;
-    const maxPoints = 8;
-    const minRadius = 50;
-    const maxRadius = 150;
+    // Define canvas dimensions
+    const width = 400;
+    const height = 400;
     
-    // Generate random number of vertices
-    const numPoints = Math.floor(Math.random() * (maxPoints - minPoints + 1)) + minPoints;
+    // Generate vertices using cellular automata
+    const newVertices = generateCAShape(width, height);
     
-    // Generate vertices in a roughly circular pattern with random variation
-    const newVertices: number[][] = [];
-    for (let i = 0; i < numPoints; i++) {
-      const angle = (i * 2 * Math.PI) / numPoints;
-      const radius = minRadius + Math.random() * (maxRadius - minRadius);
-      const variation = 0.3;
-      
-      const x = centerX + radius * Math.cos(angle) * (1 + variation * (Math.random() - 0.5));
-      const y = centerY + radius * Math.sin(angle) * (1 + variation * (Math.random() - 0.5));
-      
-      newVertices.push([x, y]);
+    // Ensure we have enough vertices for a valid shape
+    if (newVertices.length < 3) {
+      // Fallback to a simple triangle if CA fails to generate enough vertices
+      const fallbackVertices = [
+        [200, 100],
+        [100, 300],
+        [300, 300]
+      ];
+      setVertices(fallbackVertices);
+      setTriangles([[fallbackVertices[0], fallbackVertices[1], fallbackVertices[2]]]);
+      setSelectedVertex(0);
+      return;
     }
-
-    // Find center point for triangulation
-    const avgX = newVertices.reduce((sum, v) => sum + v[0], 0) / numPoints;
-    const avgY = newVertices.reduce((sum, v) => sum + v[1], 0) / numPoints;
-    const centerPoint: [number, number] = [avgX, avgY];
-
-    // Create triangles by connecting center to each pair of adjacent vertices
-    const newTriangles: number[][][] = [];
-    for (let i = 0; i < numPoints; i++) {
-      const nextI = (i + 1) % numPoints;
-      newTriangles.push([
-        centerPoint,
-        newVertices[i],
-        newVertices[nextI]
-      ]);
-    }
-
-    // Store vertices WITHOUT the center point
+  
+    // Create triangles from the vertices
+    const newTriangles = triangulate(newVertices);
+  
+    // Update state with new shape
     setVertices(newVertices);
     setTriangles(newTriangles);
-    setSelectedVertex(0);
+    setSelectedVertex(0);  // Reset selected vertex to first one
+  
+    // Log shape info for debugging
+    console.log(`Generated shape with ${newVertices.length} vertices and ${newTriangles.length} triangles`);
   };
 
   // Call generateShape on first render and when resetting
