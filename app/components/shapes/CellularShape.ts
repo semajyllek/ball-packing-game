@@ -54,6 +54,7 @@ export const generateCAShape = (width: number, height: number): number[][] => {
   const visited = new Set<string>();
   let current: [number, number] | null = null;
 
+
   // Find first boundary point
   outer: for (let i = 0; i < gridSize; i++) {
     for (let j = 0; j < gridSize; j++) {
@@ -82,7 +83,7 @@ export const generateCAShape = (width: number, height: number): number[][] => {
   
   const startPoint = `${current[0]},${current[1]}`;
   do {
-    const [i, j] = current;
+	const [i, j]: [number, number] = current as [number, number];
     const key = `${i},${j}`;
     
     if (!visited.has(key) && isEdgeCell(grid, i, j)) {
