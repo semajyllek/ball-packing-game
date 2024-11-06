@@ -60,12 +60,38 @@ const joinShapes = (shape1: Shape, shape2: Shape): Shape => {
   return simplified;
 };
 
+// Pick spout locations and add them to vertices
+const addSpouts = (shape: Shape): Shape => {
+  const numSpouts = 2 + Math.floor(Math.random() * 2); // 2-3 spouts
+  const spoutIndices = new Set<number>();
+  
+  // Prefer vertices that are higher up (better for gameplay)
+  const sortedIndices = shape.map((_, i) => i)
+    .sort((a, b) => shape[a][1] - shape[b][1])
+    .slice(0, Math.ceil(shape.length / 2)); // Only consider top half
+  
+  // Select random indices from the top half
+  while (spoutIndices.size < numSpouts) {
+    const index = sortedIndices[Math.floor(Math.random() * sortedIndices.length)];
+    spoutIndices.add(index);
+  }
+  
+  // Mark spout vertices by slightly offsetting them
+  return shape.map((point, i) => {
+    if (spoutIndices.has(i)) {
+      // Offset spout slightly upward to mark it
+      return [point[0], point[1] - 2];
+    }
+    return point;
+  });
+};
+
 export const generateCompoundShape = (width: number, height: number): number[][] => {
   const scale = Math.min(width, height) * 0.3;
   const center: Point = [width/2, height/2];
   
-  // Create 2-3 basic shapes
-  const numShapes = 2 + Math.floor(Math.random() * 2);
+  // Create 2-10 basic shapes
+  const numShapes = 2 + Math.floor(Math.random() * 9);
   let combinedShape: Shape;
   
   // First shape at center
@@ -76,15 +102,18 @@ export const generateCompoundShape = (width: number, height: number): number[][]
   // Add additional shapes
   for (let i = 1; i < numShapes; i++) {
     const angle = (Math.PI * 2 * i) / numShapes;
-    const offset = scale * 0.4;
+    const offset = scale * (0.3 + Math.random() * 0.2); // Vary the offset
     const pos: Point = [
       center[0] + Math.cos(angle) * offset,
       center[1] + Math.sin(angle) * offset
     ];
     
+    // Vary the shape size
+    const shapeScale = scale * (0.2 + Math.random() * 0.2);
+    
     const newShape = Math.random() > 0.5 ?
-      createRect(pos[0], pos[1], scale * 0.3, scale * 0.3) :
-      createTriangle(pos[0], pos[1], scale * 0.3);
+      createRect(pos[0], pos[1], shapeScale, shapeScale * 0.8) :
+      createTriangle(pos[0], pos[1], shapeScale);
     
     // Join with existing shape
     combinedShape = joinShapes(combinedShape, newShape);
@@ -96,5 +125,6 @@ export const generateCompoundShape = (width: number, height: number): number[][]
     combinedShape = combinedShape.filter((_, i) => i % stride === 0);
   }
   
-  return combinedShape;
+  // Add spouts and return final shape
+  return addSpouts(combinedShape);
 };
