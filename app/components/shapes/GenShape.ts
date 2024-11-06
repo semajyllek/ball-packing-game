@@ -37,26 +37,27 @@ const joinShapes = (shape1: Shape, shape2: Shape): Shape => {
   });
   
   // Merge shapes by connecting at these points
-  const result = [...shape1];
-  const reorderedShape2 = [
+  const combined = [
+    ...shape1.slice(0, connect1),
     ...shape2.slice(connect2),
-    ...shape2.slice(0, connect2)
+    ...shape2.slice(0, connect2),
+    ...shape1.slice(connect1)
   ];
   
-  // Only add points that maintain shape without creating internal lines
-  return [...shape1, ...reorderedShape2.slice(1)];
-};
-
-// Select 2-3 vertices as spouts
-const selectSpouts = (vertices: Shape): Point[] => {
-  const numSpouts = 2 + Math.floor(Math.random() * 2);
-  const indices = new Set<number>();
+  // Remove any points that are too close together
+  const simplified: Shape = [];
+  const minDistSq = 25; // 5 pixels squared
   
-  while (indices.size < numSpouts) {
-    indices.add(Math.floor(Math.random() * vertices.length));
+  for (let i = 0; i < combined.length; i++) {
+    const p1 = combined[i];
+    const p2 = combined[(i + 1) % combined.length];
+    const distSq = Math.pow(p2[0] - p1[0], 2) + Math.pow(p2[1] - p1[1], 2);
+    if (distSq > minDistSq) {
+      simplified.push(p1);
+    }
   }
   
-  return Array.from(indices).map(i => vertices[i]);
+  return simplified;
 };
 
 export const generateCompoundShape = (width: number, height: number): number[][] => {
@@ -65,13 +66,12 @@ export const generateCompoundShape = (width: number, height: number): number[][]
   
   // Create 2-3 basic shapes
   const numShapes = 2 + Math.floor(Math.random() * 2);
-  let shapes: Shape[] = [];
+  let combinedShape: Shape;
   
   // First shape at center
-  shapes.push(Math.random() > 0.5 ? 
+  combinedShape = Math.random() > 0.5 ? 
     createRect(center[0], center[1], scale * 0.5, scale * 0.4) :
-    createTriangle(center[0], center[1], scale * 0.5)
-  );
+    createTriangle(center[0], center[1], scale * 0.5);
   
   // Add additional shapes
   for (let i = 1; i < numShapes; i++) {
@@ -87,11 +87,14 @@ export const generateCompoundShape = (width: number, height: number): number[][]
       createTriangle(pos[0], pos[1], scale * 0.3);
     
     // Join with existing shape
-    shapes[0] = joinShapes(shapes[0], newShape);
+    combinedShape = joinShapes(combinedShape, newShape);
   }
   
-  // Select spouts from corners
-  const spouts = selectSpouts(shapes[0]);
+  // If we have too many vertices, simplify by sampling
+  if (combinedShape.length > 10) {
+    const stride = Math.ceil(combinedShape.length / 10);
+    combinedShape = combinedShape.filter((_, i) => i % stride === 0);
+  }
   
-  return shapes[0];
+  return combinedShape;
 };
