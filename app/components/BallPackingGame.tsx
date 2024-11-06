@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { RotateCcw } from 'lucide-react';
-import { generateCAShape } from './shapes/CellularShape';
+import { generateCompoundShape } from './shapes/GenShape';
 import { triangulate } from './shapes/PolygonUtils';
 
 
@@ -34,7 +34,7 @@ const BallPackingGame = () => {
     
     try {
       // Generate vertices using cellular automata
-      const newVertices = generateCAShape(width, height);
+      const newVertices = generateCompoundShape(width, height);
       
       console.log('Generated vertices:', newVertices); // Debug log
   
