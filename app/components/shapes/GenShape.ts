@@ -1,192 +1,137 @@
-// Basic shape definitions and utilities
-interface Shape {
-	vertices: number[][];
-	center: [number, number];
-	rotation: number;
+type Point = [number, number];
+interface FlowSegment { start: Point; end: Point; controls: [Point, Point]; }
+interface PathSection { upper: Point[]; lower: Point[]; }
+
+// Bezier curve helpers
+const cubicBezier = (p0: Point, p1: Point, p2: Point, p3: Point, t: number): Point => {
+  const mt = 1 - t;
+  const mt2 = mt * mt;
+  const mt3 = mt2 * mt;
+  const t2 = t * t;
+  const t3 = t2 * t;
+  
+  return [
+    mt3 * p0[0] + 3 * mt2 * t * p1[0] + 3 * mt * t2 * p2[0] + t3 * p3[0],
+    mt3 * p0[1] + 3 * mt2 * t * p1[1] + 3 * mt * t2 * p2[1] + t3 * p3[1]
+  ];
+};
+
+const generateControlPoints = (start: Point, end: Point, scale: number): [Point, Point] => {
+  const [x1, y1] = start;
+  const [x2, y2] = end;
+  
+  return [
+    [x1 + (x2 - x1) * 0.33, y1 + (y2 - y1) * 0.33 + (Math.random() - 0.5) * scale * 0.2],
+    [x1 + (x2 - x1) * 0.66, y1 + (y2 - y1) * 0.66 + (Math.random() - 0.5) * scale * 0.2]
+  ];
+};
+
+// Flow path generation
+const generateFlowSegments = (width: number, height: number, numSegments: number): FlowSegment[] => {
+  const scale = Math.min(width, height) * 0.4;
+  const centerY = height / 2;
+  let currentX = width / 2 - scale * 0.5;
+  let currentY = centerY;
+  
+  return Array.from({ length: numSegments }, () => {
+    const start: Point = [currentX, currentY];
+    const nextX = currentX + (scale * (0.3 + Math.random() * 0.4));
+    const nextY = centerY + (scale * (Math.random() - 0.5) * 0.6);
+    const end: Point = [nextX, nextY];
+    
+    const controls = generateControlPoints(start, end, scale);
+    currentX = nextX;
+    currentY = nextY;
+    
+    return { start, end, controls };
+  });
+};
+
+const generateFlowPoints = (segments: FlowSegment[]): Point[] => {
+  const points: Point[] = [];
+  
+  segments.forEach(({ start, end, controls }) => {
+    for (let t = 0; t <= 1; t += 0.1) {
+      points.push(cubicBezier(start, controls[0], controls[1], end, t));
+    }
+  });
+  
+  return points;
+};
+
+// Path expansion
+const calculateNormal = (prev: Point, next: Point): Point => {
+  const dx = next[0] - prev[0];
+  const dy = next[1] - prev[1];
+  const len = Math.sqrt(dx * dx + dy * dy);
+  return [-dy / len, dx / len];
+};
+
+const expandFlowPath = (flowPoints: Point[], scale: number): PathSection => {
+  const upperPath: Point[] = [];
+  const lowerPath: Point[] = [];
+  let previousNormal: Point = [0, 0];
+  
+  flowPoints.forEach((point, i) => {
+    const next = flowPoints[Math.min(i + 1, flowPoints.length - 1)];
+    const prev = flowPoints[Math.max(i - 1, 0)];
+    
+    let normal = calculateNormal(prev, next);
+    if (i > 0) {
+      normal = [
+        (normal[0] + previousNormal[0]) * 0.5,
+        (normal[1] + previousNormal[1]) * 0.5
+      ];
+    }
+    previousNormal = normal;
+    
+    const thickness = scale * (0.15 + Math.sin(i * 0.5) * 0.05);
+    upperPath.push([
+      point[0] + normal[0] * thickness,
+      point[1] + normal[1] * thickness
+    ]);
+    lowerPath.unshift([
+      point[0] - normal[0] * thickness,
+      point[1] - normal[1] * thickness
+    ]);
+  });
+  
+  return { upper: upperPath, lower: lowerPath };
+};
+
+// Spout selection
+const selectSpouts = (paths: PathSection, numSpouts: number): Point[] => {
+  const { upper, lower } = paths;
+  const candidates = [
+    upper[0],
+    upper[Math.floor(upper.length * 0.5)],
+    upper[upper.length - 1],
+    lower[0],
+    lower[Math.floor(lower.length * 0.5)],
+    lower[lower.length - 1]
+  ];
+  
+  const spouts: Point[] = [];
+  while (spouts.length < numSpouts) {
+    const candidate = candidates[Math.floor(Math.random() * candidates.length)];
+    const key = `${candidate[0]},${candidate[1]}`;
+    if (!spouts.some(p => `${p[0]},${p[1]}` === key)) {
+      spouts.push(candidate);
+    }
   }
   
-  interface ShapeParams {
-	x: number;
-	y: number;
-	width: number;
-	height: number;
-	rotation?: number;
-  }
-  
-  // Generate basic shapes
-  const createRect = ({ x, y, width, height, rotation = 0 }: ShapeParams): Shape => {
-	const halfW = width / 2;
-	const halfH = height / 2;
-	const vertices = [
-	  [-halfW, -halfH],
-	  [halfW, -halfH],
-	  [halfW, halfH],
-	  [-halfW, halfH]
-	].map(([px, py]) => {
-	  const rotatedX = px * Math.cos(rotation) - py * Math.sin(rotation);
-	  const rotatedY = px * Math.sin(rotation) + py * Math.cos(rotation);
-	  return [rotatedX + x, rotatedY + y];
-	});
-	
-	return { vertices, center: [x, y], rotation };
-  };
-  
-  const createTriangle = ({ x, y, width, height, rotation = 0 }: ShapeParams): Shape => {
-	const halfW = width / 2;
-	const vertices = [
-	  [0, -height/2],
-	  [halfW, height/2],
-	  [-halfW, height/2]
-	].map(([px, py]) => {
-	  const rotatedX = px * Math.cos(rotation) - py * Math.sin(rotation);
-	  const rotatedY = px * Math.sin(rotation) + py * Math.cos(rotation);
-	  return [rotatedX + x, rotatedY + y];
-	});
-	
-	return { vertices, center: [x, y], rotation };
-  };
-  
-  const createCircle = ({ x, y, width, height }: ShapeParams): Shape => {
-	const radius = Math.min(width, height) / 2;
-	const segments = 12;
-	const vertices = Array.from({ length: segments }, (_, i) => {
-	  const angle = (i / segments) * Math.PI * 2;
-	  return [
-		x + Math.cos(angle) * radius,
-		y + Math.sin(angle) * radius
-	  ];
-	});
-	
-	return { vertices, center: [x, y], rotation: 0 };
-  };
-  
-  // Shape combination and manipulation
-  const combineShapes = (shapes: Shape[]): number[][] => {
-	// Convert shapes to a single vertex array while removing duplicates
-	const uniqueVertices = new Map<string, number[]>();
-	
-	shapes.forEach(shape => {
-	  shape.vertices.forEach(vertex => {
-		const key = `${vertex[0].toFixed(1)},${vertex[1].toFixed(1)}`;
-		uniqueVertices.set(key, vertex);
-	  });
-	});
-	
-	return Array.from(uniqueVertices.values());
-  };
-  
-  
+  return spouts;
+};
+
+// Main shape generation function
 export const generateCompoundShape = (width: number, height: number): number[][] => {
-	const shapes: Shape[] = [];
-	const numShapes = 2 + Math.floor(Math.random() * 18); // 2-20 shapes
-	
-	// Start with a base shape
-	const baseWidth = width * (0.3 + Math.random() * 0.4);
-	const baseHeight = height * (0.3 + Math.random() * 0.4);
-	const baseX = width / 2;
-	const baseY = height / 2;
-	
-	shapes.push(createRect({
-	  x: baseX,
-	  y: baseY,
-	  width: baseWidth,
-	  height: baseHeight
-	}));
-	
-	// Add additional shapes
-	for (let i = 1; i < numShapes; i++) {
-	  const prevShape = shapes[i - 1];
-	  const { center: [prevX, prevY] } = prevShape;
-	  
-	  // Random position near previous shape
-	  const angle = Math.random() * Math.PI * 2;
-	  const distance = Math.min(width, height) * (0.1 + Math.random() * 0.2);
-	  const x = prevX + Math.cos(angle) * distance;
-	  const y = prevY + Math.sin(angle) * distance;
-	  
-	  // Random shape parameters
-	  const shapeWidth = width * (0.1 + Math.random() * 0.3);
-	  const shapeHeight = height * (0.1 + Math.random() * 0.3);
-	  const rotation = Math.random() * Math.PI * 2;
-	  
-	  // Choose random shape type
-	  const shapeType = Math.floor(Math.random() * 3);
-	  let shape: Shape;
-	  
-	  switch (shapeType) {
-		case 0:
-		  shape = createRect({ x, y, width: shapeWidth, height: shapeHeight, rotation });
-		  break;
-		case 1:
-		  shape = createTriangle({ x, y, width: shapeWidth, height: shapeHeight, rotation });
-		  break;
-		case 2:
-		  shape = createCircle({ x, y, width: shapeWidth, height: shapeHeight });
-		  break;
-		default:
-		  shape = createRect({ x, y, width: shapeWidth, height: shapeHeight, rotation });
-	  }
-	  
-	  shapes.push(shape);
-	}
-	
-	// Combine all shapes and ensure they're within bounds
-	const vertices = combineShapes(shapes);
-	
-	// Scale and center the final shape
-	const bounds = vertices.reduce(
-	  (acc, [x, y]) => ({
-		minX: Math.min(acc.minX, x),
-		maxX: Math.max(acc.maxX, x),
-		minY: Math.min(acc.minY, y),
-		maxY: Math.max(acc.maxY, y)
-	  }),
-	  { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity }
-	);
-	
-	const scaleX = (width * 0.8) / (bounds.maxX - bounds.minX);
-	const scaleY = (height * 0.8) / (bounds.maxY - bounds.minY);
-	const scale = Math.min(scaleX, scaleY);
-	
-	const centerX = (bounds.maxX + bounds.minX) / 2;
-	const centerY = (bounds.maxY + bounds.minY) / 2;
-	
-	const finalVertices = vertices.map(([x, y]) => [
-	  ((x - centerX) * scale + width / 2),
-	  ((y - centerY) * scale + height / 2)
-	]);
-	
-	// Select 2-4 vertices as spouts
-	const numSpouts = 2 + Math.floor(Math.random() * 3);
-	const spoutIndices = new Set<number>();
-	
-	while (spoutIndices.size < numSpouts) {
-	  const index = Math.floor(Math.random() * finalVertices.length);
-	  spoutIndices.add(index);
-	}
-	
-	// Return only the vertices that are spouts or connect shapes
-	return finalVertices.filter((_, index) => 
-	  spoutIndices.has(index) || 
-	  isConnectionPoint(finalVertices, index)
-	);
-  };
+  const numSegments = 2 + Math.floor(Math.random() * 3);
+  const scale = Math.min(width, height) * 0.4;
   
-  // Helper to determine if a vertex is important for shape structure
-  const isConnectionPoint = (vertices: number[][], index: number): boolean => {
-	const vertex = vertices[index];
-	let connections = 0;
-	
-	for (let i = 0; i < vertices.length; i++) {
-	  if (i !== index) {
-		const distance = Math.hypot(
-		  vertices[i][0] - vertex[0],
-		  vertices[i][1] - vertex[1]
-		);
-		if (distance < 20) connections++;
-	  }
-	}
-	
-	return connections > 1;
-  };
+  const flowSegments = generateFlowSegments(width, height, numSegments);
+  const flowPoints = generateFlowPoints(flowSegments);
+  const paths = expandFlowPath(flowPoints, scale);
+  const spouts = selectSpouts(paths, 2 + Math.floor(Math.random() * 2));
   
+  return [...paths.upper, ...paths.lower, ...spouts];
+};
