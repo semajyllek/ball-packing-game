@@ -1,6 +1,6 @@
 import { Shape, Rectangle, Circle, Triangle, Star } from './ShapeClasses';
 import { Point } from './GeometryUtils';
-import { mergeShapes } from './ShapeMerger';
+import { mergeShapes, isPointInShape } from './ShapeMerger';
 
 // Constants
 // const MIN_SIZE = 60;
