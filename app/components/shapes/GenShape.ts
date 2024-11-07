@@ -3,8 +3,8 @@ import { Shape, Rectangle, Circle, Triangle, Star } from './ShapeClasses';
 import { mergeShapes } from './ShapeMerger';
 
 // Constants
-const MIN_SIZE = 60;  // Doubled from 30
-const MAX_SIZE = 160; // Doubled from 80
+const MIN_SIZE = 100; 
+const MAX_SIZE = 200; 
 
 const createRandomShape = (): Shape => {
     const shapeType = Math.floor(Math.random() * 4);
