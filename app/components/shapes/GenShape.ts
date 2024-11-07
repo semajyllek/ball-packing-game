@@ -5,8 +5,6 @@ import { mergeShapes } from './ShapeMerger';
 // Constants
 const MIN_SIZE = 60;  // Doubled from 30
 const MAX_SIZE = 160; // Doubled from 80
-const MIN_SHAPES = 2;
-const MAX_SHAPES = 5;
 
 const createRandomShape = (): Shape => {
     const shapeType = Math.floor(Math.random() * 4);
