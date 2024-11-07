@@ -4,7 +4,7 @@ import { mergeShapes } from './ShapeMerger';
 
 // Constants
 const MIN_SIZE = 40;   // 10% of game area
-const MAX_SIZE = 100;  // 25% of game area
+const MAX_SIZE = 300;  // 25% of game area
 const MIN_SHAPES = 3;
 const MAX_SHAPES = 8;
 
