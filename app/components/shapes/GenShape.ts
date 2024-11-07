@@ -3,8 +3,8 @@ import { Point } from './GeometryUtils';
 import { mergeShapes } from './ShapeMerger';
 
 // Constants
-//const MIN_SIZE = 60;
-//const MAX_SIZE = 200;
+// const MIN_SIZE = 60;
+// const MAX_SIZE = 200;
 const MIN_SHAPES = 3;
 const MAX_SHAPES = 5;
 
@@ -14,16 +14,10 @@ const createRandomShape = (): Shape => {
     const y = 0;
     
     switch (shapeType) {
-        case 0: // Rectangle
-            // Make rectangles more prominent and clearer
+        case 0: // Rectangle - no rotation needed!
             const width = 100 + Math.random() * 100;  // 100-200
             const height = 100 + Math.random() * 100; // 100-200
-            const rect = new Rectangle(x, y, width, height);
-            
-            // Only use 0, 90, 180, or 270 degrees for clearer right angles
-            const rotation = Math.floor(Math.random() * 4) * (Math.PI / 2);
-            rect.rotate(rotation);
-            return rect;
+            return new Rectangle(x, y, width, height);
         case 1:
             const radius = 40 + Math.random() * 40;
             return new Circle(x, y, radius, 16);
@@ -42,18 +36,17 @@ const findOverlappingPosition = (newShape: Shape, existingShape: Shape): boolean
     const centerX = (existingBounds.maxX + existingBounds.minX) / 2;
     const centerY = (existingBounds.maxY + existingBounds.minY) / 2;
     
-    // Try positions in a more structured way
-    const possibleDistances = [30, 60, 90, 120];
-    const possibleAngles = [0, Math.PI/4, Math.PI/2, 3*Math.PI/4, Math.PI];
+    // Try positions with fixed offsets for more predictable overlap
+    const offsets = [-50, 0, 50];
     
-    for (const distance of possibleDistances) {
-        for (const angle of possibleAngles) {
-            const x = centerX + Math.cos(angle) * distance;
-            const y = centerY + Math.sin(angle) * distance;
+    for (const offsetX of offsets) {
+        for (const offsetY of offsets) {
+            const x = centerX + offsetX;
+            const y = centerY + offsetY;
             
             newShape.translate(x, y);
             
-            // Count vertices that overlap
+            // Check for overlap
             const newVertices = newShape.getVertices();
             let overlapCount = 0;
             let outsideCount = 0;
@@ -79,31 +72,14 @@ const findOverlappingPosition = (newShape: Shape, existingShape: Shape): boolean
     return false;
 };
 
-const isPointInShape = (point: Point, shape: Shape): boolean => {
-    const vertices = shape.getVertices();
-    let inside = false;
-    
-    for (let i = 0, j = vertices.length - 1; i < vertices.length; j = i++) {
-        const xi = vertices[i][0], yi = vertices[i][1];
-        const xj = vertices[j][0], yj = vertices[j][1];
-        
-        const intersect = ((yi > point[1]) !== (yj > point[1])) &&
-            (point[0] < (xj - xi) * (point[1] - yi) / (yj - yi) + xi);
-        
-        if (intersect) inside = !inside;
-    }
-    
-    return inside;
-};
-
 export const generateCompoundShape = (width: number, height: number): GeneratedShape => {
     const shapes: Shape[] = [];
     let attempts = 0;
     const maxAttempts = 100;
 
-    // Force first shape to be a rectangle
-    const firstShape = new Rectangle(0, 0, 150, 100);
-    firstShape.translate(width/2 - 75, height/2 - 50);
+    // First shape placed at center
+    const firstShape = createRandomShape();
+    firstShape.translate(width/2, height/2);
     shapes.push(firstShape);
 
     // Add remaining shapes
@@ -125,12 +101,10 @@ export const generateCompoundShape = (width: number, height: number): GeneratedS
         if (!placed) attempts++;
     }
 
-    // Ensure minimum shapes requirement
     if (shapes.length < MIN_SHAPES) {
         return createFallbackShape(width, height);
     }
 
-    // Merge shapes and get outline
     const outline = mergeShapes(shapes);
     
     // Select random vertices as spouts (1-3)
@@ -147,7 +121,6 @@ export const generateCompoundShape = (width: number, height: number): GeneratedS
     return { outline, spouts };
 };
 
-// ... rest of the code (createFallbackShape and interface) remains the same
 const createFallbackShape = (width: number, height: number): GeneratedShape => {
     const centerX = width / 2;
     const centerY = height / 2;
