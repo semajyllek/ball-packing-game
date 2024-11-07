@@ -1,108 +1,81 @@
-import { Point, LineSegment, findIntersection, isPointInsideShape, 
-    getShapeEdges, calculateCentroid } from './GeometryUtils';
 import { Shape } from './ShapeClasses';
 
+type Point = number[];
+type LineSegment = [Point, Point];
+
 const getAllShapeEdges = (shapes: Shape[]): LineSegment[] => {
-    return shapes.flatMap(shape => getShapeEdges(shape.vertices));
+    return shapes.flatMap(shape => getShapeEdges(shape.getVertices()));
+};
+
+const getShapeEdges = (vertices: Point[]): LineSegment[] => {
+    const edges: LineSegment[] = [];
+    for (let i = 0; i < vertices.length; i++) {
+        const j = (i + 1) % vertices.length;
+        edges.push([vertices[i], vertices[j]]);
+    }
+    return edges;
 };
 
 const isEdgeFromShape = (edge: LineSegment, shape: Shape): boolean => {
-    return shape.vertices.some(vertex => 
-        (vertex[0] === edge.start[0] && vertex[1] === edge.start[1]) ||
-        (vertex[0] === edge.end[0] && vertex[1] === edge.end[1])
-    );
+    const vertices = shape.getVertices();
+    for (let i = 0; i < vertices.length; i++) {
+        const j = (i + 1) % vertices.length;
+        if (arePointsEqual(edge[0], vertices[i]) && arePointsEqual(edge[1], vertices[j]) ||
+            arePointsEqual(edge[0], vertices[j]) && arePointsEqual(edge[1], vertices[i])) {
+            return true;
+        }
+    }
+    return false;
 };
 
-const getEdgeMidpoint = (edge: LineSegment): Point => {
-    return [
-        (edge.start[0] + edge.end[0]) / 2,
-        (edge.start[1] + edge.end[1]) / 2
-    ];
+const arePointsEqual = (p1: Point, p2: Point): boolean => {
+    return Math.abs(p1[0] - p2[0]) < 0.001 && Math.abs(p1[1] - p2[1]) < 0.001;
 };
 
-const isEdgeVisible = (edge: LineSegment, shapes: Shape[]): boolean => {
-    const midpoint = getEdgeMidpoint(edge);
-    let containmentCount = 0;
-    
+const isEdgeShared = (edge: LineSegment, shapes: Shape[]): boolean => {
+    let sharedCount = 0;
     for (const shape of shapes) {
-        // Only count containment if it's not from the shape that owns the edge
-        if (!isEdgeFromShape(edge, shape) && isPointInsideShape(midpoint, shape.vertices)) {
-            containmentCount++;
+        if (isEdgeFromShape(edge, shape)) {
+            sharedCount++;
+            if (sharedCount > 1) return true;
         }
     }
-
-    // Edge is visible if it's not contained within other shapes
-    return containmentCount === 0;
-};
-
-const findIntersectionPoints = (edges: LineSegment[]): Point[] => {
-    const intersections: Point[] = [];
-    const seen = new Set<string>();
-
-    for (let i = 0; i < edges.length; i++) {
-        for (let j = i + 1; j < edges.length; j++) {
-            const intersection = findIntersection(
-                edges[i].start, edges[i].end,
-                edges[j].start, edges[j].end
-            );
-            
-            if (intersection) {
-                const key = `${intersection[0].toFixed(1)},${intersection[1].toFixed(1)}`;
-                if (!seen.has(key)) {
-                    intersections.push(intersection);
-                    seen.add(key);
-                }
-            }
-        }
-    }
-
-    return intersections;
-};
-
-const collectUniquePoints = (edges: LineSegment[], intersections: Point[]): Point[] => {
-    const uniquePoints = new Map<string, Point>();
-
-    const addPoint = (point: Point) => {
-        const key = `${point[0].toFixed(1)},${point[1].toFixed(1)}`;
-        uniquePoints.set(key, point);
-    };
-
-    edges.forEach(edge => {
-        addPoint(edge.start);
-        addPoint(edge.end);
-    });
-
-    intersections.forEach(addPoint);
-
-    return Array.from(uniquePoints.values());
-};
-
-const sortPointsClockwise = (points: Point[]): Point[] => {
-    const center = calculateCentroid(points);
-    
-    return [...points].sort((a, b) => {
-        const angleA = Math.atan2(a[1] - center[1], a[0] - center[0]);
-        const angleB = Math.atan2(b[1] - center[1], b[0] - center[0]);
-        
-        if (Math.abs(angleA - angleB) < 0.0001) {
-            // If angles are very close, sort by distance from center
-            const distA = Math.hypot(a[0] - center[0], a[1] - center[1]);
-            const distB = Math.hypot(b[0] - center[0], b[1] - center[1]);
-            return distA - distB;
-        }
-        
-        return angleA - angleB;
-    });
+    return false;
 };
 
 export const mergeShapes = (shapes: Shape[]): Point[] => {
     if (shapes.length === 0) return [];
-    if (shapes.length === 1) return [...shapes[0].vertices];
+    if (shapes.length === 1) return shapes[0].getVertices();
 
     const allEdges = getAllShapeEdges(shapes);
-    const visibleEdges = allEdges.filter(edge => isEdgeVisible(edge, shapes));
-    const intersections = findIntersectionPoints(visibleEdges);
-    const uniquePoints = collectUniquePoints(visibleEdges, intersections);
-    
-    return sortPointsClockwise(uniquePoints);
+    const outlineEdges = allEdges.filter(edge => !isEdgeShared(edge, shapes));
+
+    // Sort edges to form a continuous outline
+    const outline: Point[] = [];
+    let currentEdge = outlineEdges[0];
+    outline.push(currentEdge[0]);
+
+    while (outlineEdges.length > 0) {
+        const index = outlineEdges.indexOf(currentEdge);
+        outlineEdges.splice(index, 1);
+        outline.push(currentEdge[1]);
+
+        if (outlineEdges.length === 0) break;
+
+        const nextEdge = outlineEdges.find(edge => 
+            arePointsEqual(edge[0], currentEdge[1]) ||
+            arePointsEqual(edge[1], currentEdge[1])
+        );
+
+        if (!nextEdge) break;
+
+        // If the endpoints are reversed, swap them
+        if (arePointsEqual(nextEdge[1], currentEdge[1])) {
+            currentEdge = [nextEdge[1], nextEdge[0]];
+        } else {
+            currentEdge = nextEdge;
+        }
+    }
+
+    return outline;
 };
