@@ -1,12 +1,7 @@
-
-/* eslint-disable @typescript-eslint/no-unused-vars */
-
-'use client';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { RotateCcw } from 'lucide-react';
 import { generateCompoundShape } from './shapes/GenShape';
 import { triangulate } from './shapes/PolygonUtils';
-
 
 interface Ball {
   id: number;  
@@ -17,9 +12,6 @@ interface Ball {
   velY: number;
   color: string;
 }
-
-
-
 
 const BallPackingGame = () => {
   const [balls, setBalls] = useState<Ball[]>([]);
@@ -32,93 +24,66 @@ const BallPackingGame = () => {
   const requestRef = useRef<number>();
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Define consistent dimensions
+  const GAME_WIDTH = 600;
+  const GAME_HEIGHT = 400; // Match container height
+  const MARGIN = 40; // Smaller margin to use more space
 
-
-  
   const generateShape = () => {
-    // Define canvas dimensions
-    const width = 600;
-    const height = 600;
-    
     try {
-      const shape = generateCompoundShape(width, height);
+      // Generate shape with adjusted height
+      const shape = generateCompoundShape(GAME_WIDTH, GAME_HEIGHT);
       const newVertices = shape.outline;
       const newSpouts = shape.spouts;
       
-      console.log('Generated vertices:', newVertices);
-  
-      // Validate vertices
-      if (!newVertices || newVertices.length < 3) {
-        console.log('Not enough vertices, using fallback shape');
-        throw new Error('Insufficient vertices');
-      }
-  
-      // Ensure all vertices are valid numbers
-      const validVertices = newVertices.filter(v => 
-        Array.isArray(v) && 
-        v.length === 2 && 
-        !isNaN(v[0]) && 
-        !isNaN(v[1]) &&
-        isFinite(v[0]) && 
-        isFinite(v[1])
-      );
-  
-      if (validVertices.length < 3) {
-        console.log('Invalid vertices detected, using fallback shape');
-        throw new Error('Invalid vertices');
-      }
-  
-      // Create triangles from the vertices
-      const newTriangles = triangulate(validVertices);
-  
-      if (!newTriangles || newTriangles.length === 0) {
-        console.log('Triangulation failed, using fallback shape');
-        throw new Error('Triangulation failed');
-      }
-  
-      // Update state with new shape
-      setVertices(validVertices);
+      // Scale vertices to fit within margins
+      const scaledVertices = newVertices.map(v => [
+        Math.min(Math.max(v[0], MARGIN), GAME_WIDTH - MARGIN),
+        Math.min(Math.max(v[1], MARGIN), GAME_HEIGHT - MARGIN)
+      ]);
+      
+      // Scale spouts similarly
+      const scaledSpouts = newSpouts.map(v => [
+        Math.min(Math.max(v[0], MARGIN), GAME_WIDTH - MARGIN),
+        Math.min(Math.max(v[1], MARGIN), GAME_HEIGHT - MARGIN)
+      ]);
+
+      const newTriangles = triangulate(scaledVertices);
+
+      setVertices(scaledVertices);
       setTriangles(newTriangles);
-      setSpouts(newSpouts);
+      setSpouts(scaledSpouts);
       setSelectedVertex(0);
 
-  
     } catch (error) {
       console.log('Error generating shape:', error);
-      // Fallback to a simple hexagon
+      // Fallback shape with proper scaling
       const fallbackVertices = [
-        [200, 100], // top
-        [300, 150], // top right
-        [300, 250], // bottom right
-        [200, 300], // bottom
-        [100, 250], // bottom left
-        [100, 150], // top left
+        [GAME_WIDTH/2, MARGIN * 2], // top
+        [GAME_WIDTH * 0.75, GAME_HEIGHT * 0.3], // top right
+        [GAME_WIDTH * 0.75, GAME_HEIGHT * 0.7], // bottom right
+        [GAME_WIDTH/2, GAME_HEIGHT - MARGIN * 2], // bottom
+        [GAME_WIDTH * 0.25, GAME_HEIGHT * 0.7], // bottom left
+        [GAME_WIDTH * 0.25, GAME_HEIGHT * 0.3], // top left
       ];
 
       const fallbackSpouts = [
-        [200, 100], // top
-        [300, 150], // top right
+        [GAME_WIDTH/2, MARGIN * 2], // top
+        [GAME_WIDTH * 0.75, GAME_HEIGHT * 0.3], // top right
       ];
 
-      const centerPoint = [200, 200];
+      const centerPoint = [GAME_WIDTH/2, GAME_HEIGHT/2];
       const fallbackTriangles = fallbackVertices.map((vertex, i) => {
-      const nextVertex = fallbackVertices[(i + 1) % fallbackVertices.length];
+        const nextVertex = fallbackVertices[(i + 1) % fallbackVertices.length];
+        return [centerPoint, vertex, nextVertex];
+      });
 
       setVertices(fallbackVertices);
       setTriangles(fallbackTriangles);
       setSpouts(fallbackSpouts);
       setSelectedVertex(0);
-
-     
-      return [centerPoint, vertex, nextVertex];
-      });
-  
-      setVertices(fallbackVertices);
-      setTriangles(fallbackTriangles);
-      setSelectedVertex(0);
     }
   };
-
 
   // Call generateShape on first render and when resetting
   useEffect(() => {
@@ -298,6 +263,8 @@ const BallPackingGame = () => {
     }
   }, [balls.length, gameWon, findNearestEdgePoint, triangles, balls, bounceFactor]);
 
+  
+  
   return (
     <div className="w-full max-w-4xl mx-auto p-4">
       <div className="bg-slate-100 rounded-lg p-4">
@@ -307,7 +274,7 @@ const BallPackingGame = () => {
           </div>
           <button
             onClick={resetGame}
-            className="p-2 rounded bg-blue-500 text-white"
+            className="p-2 rounded bg-blue-500 text-white hover:bg-blue-600 transition-colors"
           >
             <RotateCcw />
           </button>
@@ -317,9 +284,9 @@ const BallPackingGame = () => {
           ref={containerRef}
           onClick={handleClick}
           className="relative bg-white rounded-lg overflow-hidden cursor-pointer"
-          style={{ height: '400px' }}
+          style={{ height: `${GAME_HEIGHT}px`, width: `${GAME_WIDTH}px` }}
         >
-          <svg width="600" height="600">
+          <svg width={GAME_WIDTH} height={GAME_HEIGHT}>
             {triangles.map((triangle, index) => (
               <path
                 key={index}
@@ -332,17 +299,17 @@ const BallPackingGame = () => {
             
             {spouts.map((spout, index) => (
               <circle
-            key={index}
-            cx={spout[0]}
-            cy={spout[1]}
-            r="8"
-            fill={index === selectedVertex ? "red" : "#666"}
-            stroke="white"
-            strokeWidth="2"
-            onClick={(e) => handleVertexClick(index, e)}
-            style={{ cursor: 'pointer' }}
-            />
-          ))}
+                key={index}
+                cx={spout[0]}
+                cy={spout[1]}
+                r="8"
+                fill={index === selectedVertex ? "red" : "#666"}
+                stroke="white"
+                strokeWidth="2"
+                onClick={(e) => handleVertexClick(index, e)}
+                style={{ cursor: 'pointer' }}
+              />
+            ))}
             
             {balls.map(ball => (
               <circle
@@ -363,6 +330,9 @@ const BallPackingGame = () => {
         </div>
       </div>
     </div>
-);}
+  );
+};
 
 export default BallPackingGame;
+
+
