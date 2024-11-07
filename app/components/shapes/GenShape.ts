@@ -4,8 +4,8 @@ import { mergeShapes, isPointInShape } from './ShapeMerger';
 
 // Constants
 const MIN_SIZE = 60;
-const MAX_SIZE = 200;
-const MIN_SHAPES = 3;
+const MAX_SIZE = 400;
+const MIN_SHAPES = 6;
 
 const randomInRange = (min: number, max: number): number => {
     return min + Math.random() * (max - min);
