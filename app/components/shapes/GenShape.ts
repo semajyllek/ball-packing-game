@@ -7,14 +7,6 @@ const MIN_SIZE = 30;
 const MAX_SIZE = 80;
 
 
-interface GeneratedShape {
-  outline: Point[];
-  spouts: Point[];
-}
-
-
-
-
 const createRandomShape = (): Shape => {
 	const shapeType = Math.floor(Math.random() * 4);
 	const x = 0;
@@ -119,50 +111,50 @@ const selectRandomSpouts = (vertices: Point[]): Point[] => {
 	return spouts;
   };
   
-  interface GeneratedShape {
+interface GeneratedShape {
 	outline: Point[];  // Complete shape outline for rendering
 	spouts: Point[];   // Just 2-3 vertices for click handling
-  }
-  
-  export const generateCompoundShape = (width: number, height: number): GeneratedShape => {
+}
+
+export const generateCompoundShape = (width: number, height: number): GeneratedShape => {
 	const numShapes = 2 + Math.floor(Math.random() * (MAX_OBJECTS - 1));
 	const shapes: Shape[] = [];
-	
+
 	// Create and place first shape
 	const firstShape = createRandomShape();
 	placeFirstShape(firstShape, width, height);
 	shapes.push(firstShape);
-	
+
 	// Add remaining shapes with overlap
 	for (let i = 1; i < numShapes; i++) {
-	  const newShape = createRandomShape();
-	  const existingShapeIndex = Math.floor(Math.random() * shapes.length);
-	  
-	  if (placeOverlappingShape(newShape, shapes[existingShapeIndex], width, height)) {
+		const newShape = createRandomShape();
+		const existingShapeIndex = Math.floor(Math.random() * shapes.length);
+		
+		if (placeOverlappingShape(newShape, shapes[existingShapeIndex], width, height)) {
 		shapes.push(newShape);
-	  }
+		}
 	}
-	
+
 	// Get outline vertices and select spouts
 	const outline = mergeShapes(shapes);
-	
+
 	if (outline.length < 3) {
-	  // Fallback to a simple triangle if shape generation failed
-	  const fallbackOutline: Point[] = [
-		[width/2, height/4],
-		[width/4, height*3/4],
-		[width*3/4, height*3/4]
-	  ];
-	  return {
-		outline: fallbackOutline,
-		spouts: selectRandomSpouts(fallbackOutline)
-	  };
+		// Fallback to a simple triangle if shape generation failed
+		const fallbackOutline: Point[] = [
+			[width/2, height/4],
+			[width/4, height*3/4],
+			[width*3/4, height*3/4]
+		];
+		return {
+			outline: fallbackOutline,
+			spouts: selectRandomSpouts(fallbackOutline)
+		};
 	}
-	
+
 	return {
-	  outline,
-	  spouts: selectRandomSpouts(outline)
+		outline,
+		spouts: selectRandomSpouts(outline)
 	};
-  };
-  
-  
+};
+
+
