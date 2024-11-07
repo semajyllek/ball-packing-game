@@ -35,8 +35,6 @@ const createRandomShape = (): Shape => {
 };
 
 const placeFirstShape = (shape: Shape, width: number, height: number): void => {
-    const margin = MAX_SIZE / 2; // Reduced margin
-    // Place more centrally
     const x = width/2 - MAX_SIZE/2 + Math.random() * MAX_SIZE;
     const y = height/2 - MAX_SIZE/2 + Math.random() * MAX_SIZE;
     shape.translate(x, y);
