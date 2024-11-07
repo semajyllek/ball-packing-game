@@ -282,7 +282,15 @@ const BallPackingGame = () => {
     <div className="w-full max-w-4xl mx-auto p-4">
       <div className="bg-slate-100 rounded-lg p-4">
         <div className="flex justify-between items-center mb-4">
-          {/* ... content ... */}
+          <div className="text-lg font-semibold">
+            Fill Level: {fillPercentage.toFixed(1)}%
+          </div>
+          <button
+            onClick={resetGame}
+            className="p-2 rounded bg-blue-500 text-white"
+          >
+            <RotateCcw />
+          </button>
         </div>
         
         <div
@@ -291,11 +299,50 @@ const BallPackingGame = () => {
           className="relative bg-white rounded-lg overflow-hidden cursor-pointer"
           style={{ height: '400px' }}
         >
-          {/* ... content ... */}
+          <svg width="400" height="400">
+            {triangles.map((triangle, index) => (
+              <path
+                key={index}
+                d={`M ${triangle[0].join(',')} L ${triangle[1].join(',')} L ${triangle[2].join(',')} Z`}
+                fill={`hsl(${index * 360 / triangles.length}, 20%, 95%)`}
+                stroke="#666"
+                strokeWidth="2"
+              />
+            ))}
+            
+            {vertices.map((vertex, index) => (
+              <circle
+                key={index}
+                cx={vertex[0]}
+                cy={vertex[1]}
+                r="8"
+                fill={index === selectedVertex ? "red" : "#666"}
+                stroke="white"
+                strokeWidth="2"
+                onClick={(e) => handleVertexClick(index, e)}
+                style={{ cursor: 'pointer' }}
+              />
+            ))}
+            
+            {balls.map(ball => (
+              <circle
+                key={ball.id}
+                cx={ball.x}
+                cy={ball.y}
+                r={ball.radius}
+                fill={ball.color}
+              />
+            ))}
+          </svg>
+          
+          {gameWon && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
+              <div className="text-white text-4xl font-bold">You Win!</div>
+            </div>
+          )}
         </div>
       </div>
     </div>
-  );
-}; // Missing closing brace and semicolon here
+);}
 
 export default BallPackingGame;
