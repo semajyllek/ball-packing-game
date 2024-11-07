@@ -26,7 +26,6 @@ const createRandomShape = (): Shape => {
   }
 };
 
-// Place first shape anywhere within bounds
 const placeFirstShape = (shape: Shape, width: number, height: number): void => {
   const margin = MAX_SIZE;
   const x = margin + Math.random() * (width - 2 * margin);
@@ -34,17 +33,12 @@ const placeFirstShape = (shape: Shape, width: number, height: number): void => {
   shape.translate(x, y);
 };
 
-// Place subsequent shape ensuring overlap with existing shape
 const placeOverlappingShape = (newShape: Shape, existingShape: Shape, width: number, height: number): boolean => {
   const existingBounds = existingShape.getBounds();
   const margin = MAX_SIZE;
   
-  // Try multiple positions around the existing shape
   for (let attempt = 0; attempt < 50; attempt++) {
-    // Pick a point on the existing shape's boundary
-    const angle = Math.random() * Math.PI * 2;
-    const overlapAmount = 20; // How much shapes should overlap
-    
+    // Pick a random point within the existing shape's bounds
     const x = existingBounds.minX + (existingBounds.maxX - existingBounds.minX) * Math.random();
     const y = existingBounds.minY + (existingBounds.maxY - existingBounds.minY) * Math.random();
     
@@ -74,7 +68,6 @@ const placeOverlappingShape = (newShape: Shape, existingShape: Shape, width: num
   return false;
 };
 
-// Merge all shapes and return vertices, removing internal lines
 const mergeShapes = (shapes: Shape[]): Point[] => {
   const allPoints = new Set<string>();
   const internalPoints = new Set<string>();
@@ -90,7 +83,6 @@ const mergeShapes = (shapes: Shape[]): Point[] => {
     });
   });
   
-  // Return only non-internal points
   return Array.from(allPoints)
     .filter(key => !internalPoints.has(key))
     .map(key => {
@@ -99,7 +91,6 @@ const mergeShapes = (shapes: Shape[]): Point[] => {
     });
 };
 
-// Select 2-3 spouts from the vertices
 const selectSpouts = (vertices: Point[]): Point[] => {
   const numSpouts = 2 + Math.floor(Math.random() * 2);
   const sortedByHeight = [...vertices].sort((a, b) => a[1] - b[1]);
@@ -116,16 +107,15 @@ const selectSpouts = (vertices: Point[]): Point[] => {
 };
 
 export const generateCompoundShape = (width: number, height: number): number[][] => {
-  // 1. Select random number of shapes
   const numShapes = 2 + Math.floor(Math.random() * (MAX_OBJECTS - 1));
   const shapes: Shape[] = [];
   
-  // 2. Create and place first shape
+  // Create and place first shape
   const firstShape = createRandomShape();
   placeFirstShape(firstShape, width, height);
   shapes.push(firstShape);
   
-  // 3. Add remaining shapes with overlap
+  // Add remaining shapes with overlap
   for (let i = 1; i < numShapes; i++) {
     const newShape = createRandomShape();
     const existingShapeIndex = Math.floor(Math.random() * shapes.length);
@@ -135,9 +125,7 @@ export const generateCompoundShape = (width: number, height: number): number[][]
     }
   }
   
-  // 4. Get outline vertices (removing internal lines)
+  // Get outline vertices and select spouts
   const outlineVertices = mergeShapes(shapes);
-  
-  // 5. Select and return spouts
   return selectSpouts(outlineVertices);
 };
