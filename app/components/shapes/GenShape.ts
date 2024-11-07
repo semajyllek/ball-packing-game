@@ -1,9 +1,18 @@
 import { Point, Shape, Rectangle, Circle, Triangle, Star } from './ShapeClasses';
 
 
+
 const MAX_OBJECTS = 10;
 const MIN_SIZE = 30;
 const MAX_SIZE = 80;
+
+
+interface GeneratedShape {
+	outline: Point[];    // All vertices for rendering the shape
+	spouts: Point[];     // Just the 2-3 spout locations for click handling
+  }
+
+
 
 const createRandomShape = (): Shape => {
   const shapeType = Math.floor(Math.random() * 4);
@@ -93,48 +102,43 @@ const mergeShapes = (shapes: Shape[]): Point[] => {
 };
 
 const selectSpouts = (vertices: Point[]): Point[] => {
-  const numSpouts = 2 + Math.floor(Math.random() * 2);
-  const sortedByHeight = [...vertices].sort((a, b) => a[1] - b[1]);
-  const topThird = sortedByHeight.slice(0, Math.floor(vertices.length / 3));
+	const numSpouts = 2 + Math.floor(Math.random() * 2);
+	const sortedByHeight = [...vertices].sort((a, b) => a[1] - b[1]);
+	const topThird = sortedByHeight.slice(0, Math.floor(vertices.length / 3));
+	
+	const spouts: Point[] = [];
+	while (spouts.length < numSpouts && topThird.length > 0) {
+	  const index = Math.floor(Math.random() * topThird.length);
+	  spouts.push(topThird[index]);
+	  topThird.splice(index, 1);
+	}
+	
+	return spouts;
+  };
   
-  const spouts: Point[] = [];
-  while (spouts.length < numSpouts && topThird.length > 0) {
-    const index = Math.floor(Math.random() * topThird.length);
-    spouts.push(topThird[index]);
-    topThird.splice(index, 1);
-  }
-  
-  return spouts;
-};
+  export const generateCompoundShape = (width: number, height: number): GeneratedShape => {
+	const numShapes = 2 + Math.floor(Math.random() * (MAX_OBJECTS - 1));
+	const shapes: Shape[] = [];
+	
+	// Create and place first shape
+	const firstShape = createRandomShape();
+	placeFirstShape(firstShape, width, height);
+	shapes.push(firstShape);
+	
+	// Add remaining shapes with overlap
+	for (let i = 1; i < numShapes; i++) {
+	  const newShape = createRandomShape();
+	  const existingShapeIndex = Math.floor(Math.random() * shapes.length);
+	  
+	  if (placeOverlappingShape(newShape, shapes[existingShapeIndex], width, height)) {
+		shapes.push(newShape);
+	  }
+	}
+	
+	// Get outline vertices and select spouts
+	const outline = mergeShapes(shapes);
+	const spouts = selectSpouts(outline);
+	
+	return { outline, spouts };
+  };
 
-export const generateCompoundShape = (width: number, height: number): number[][] => {
-  const numShapes = 2 + Math.floor(Math.random() * (MAX_OBJECTS - 1));
-  const shapes: Shape[] = [];
-  
-  // Create and place first shape
-  const firstShape = createRandomShape();
-  placeFirstShape(firstShape, width, height);
-  shapes.push(firstShape);
-  
-  // Add remaining shapes with overlap
-  for (let i = 1; i < numShapes; i++) {
-    const newShape = createRandomShape();
-    const existingShapeIndex = Math.floor(Math.random() * shapes.length);
-    
-    if (placeOverlappingShape(newShape, shapes[existingShapeIndex], width, height)) {
-      shapes.push(newShape);
-    }
-  }
-  
-  // Get outline vertices
-  const outlineVertices = mergeShapes(shapes);
-  const spouts = selectSpouts(outlineVertices);
-  
-  // Mark spouts by slightly offsetting them up
-  return outlineVertices.map(vertex => {
-    const isSpout = spouts.some(spout => 
-      spout[0] === vertex[0] && spout[1] === vertex[1]
-    );
-    return isSpout ? [vertex[0], vertex[1] - 2] : vertex;
-  });
-};
