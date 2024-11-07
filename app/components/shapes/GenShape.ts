@@ -82,7 +82,7 @@ const placeOverlappingShape = (newShape: Shape, existingShape: Shape, width: num
 
 export const generateCompoundShape = (width: number, height: number): GeneratedShape => {
     // Always generate at least MIN_SHAPES shapes
-    let shapesToGenerate = MIN_SHAPES + Math.floor(Math.random() * (MAX_SHAPES - MIN_SHAPES + 1));
+    const shapesToGenerate = MIN_SHAPES + Math.floor(Math.random() * (MAX_SHAPES - MIN_SHAPES + 1));
     const shapes: Shape[] = [];
     let attempts = 0;
     const maxAttempts = 100;
