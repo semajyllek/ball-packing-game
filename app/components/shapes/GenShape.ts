@@ -6,7 +6,7 @@ const MAX_SIZE = 80;
 
 const createRandomShape = (): Shape => {
   const shapeType = Math.floor(Math.random() * 4);
-  const x = 0;  // Will be positioned later
+  const x = 0;
   const y = 0;
   
   switch (shapeType) {
@@ -16,7 +16,7 @@ const createRandomShape = (): Shape => {
       return new Rectangle(x, y, width, height);
     case 1:
       const radius = (MIN_SIZE + Math.random() * (MAX_SIZE - MIN_SIZE)) / 2;
-      return new Circle(x, y, radius, 16); // More segments for smoother circles
+      return new Circle(x, y, radius, 16);
     case 2:
       const size = MIN_SIZE + Math.random() * (MAX_SIZE - MIN_SIZE);
       return new Triangle(x, y, size);
@@ -26,107 +26,85 @@ const createRandomShape = (): Shape => {
   }
 };
 
-const findValidPosition = (
-  shape: Shape, 
-  existingShapes: Shape[], 
-  gameWidth: number, 
-  gameHeight: number,
-  isFirst: boolean
-): void => {
-  let attempts = 0;
-  const maxAttempts = 100;
+// Place first shape anywhere within bounds
+const placeFirstShape = (shape: Shape, width: number, height: number): void => {
+  const margin = MAX_SIZE;
+  const x = margin + Math.random() * (width - 2 * margin);
+  const y = margin + Math.random() * (height - 2 * margin);
+  shape.translate(x, y);
+};
+
+// Place subsequent shape ensuring overlap with existing shape
+const placeOverlappingShape = (newShape: Shape, existingShape: Shape, width: number, height: number): boolean => {
+  const existingBounds = existingShape.getBounds();
+  const margin = MAX_SIZE;
   
-  while (attempts < maxAttempts) {
-    const x = Math.random() * gameWidth;
-    const y = Math.random() * gameHeight;
-    shape.translate(x - shape.x, y - shape.y);
+  // Try multiple positions around the existing shape
+  for (let attempt = 0; attempt < 50; attempt++) {
+    // Pick a point on the existing shape's boundary
+    const angle = Math.random() * Math.PI * 2;
+    const overlapAmount = 20; // How much shapes should overlap
     
-    const bounds = shape.getBounds();
-    const inBounds = bounds.minX >= 0 && bounds.maxX <= gameWidth && 
-                    bounds.minY >= 0 && bounds.maxY <= gameHeight;
+    const x = existingBounds.minX + (existingBounds.maxX - existingBounds.minX) * Math.random();
+    const y = existingBounds.minY + (existingBounds.maxY - existingBounds.minY) * Math.random();
     
-    if (!inBounds) {
-      shape.translate(-shape.x, -shape.y);
-      attempts++;
+    newShape.translate(x, y);
+    const newBounds = newShape.getBounds();
+    
+    // Check if the new shape is within game bounds
+    if (newBounds.minX < margin || newBounds.maxX > width - margin || 
+        newBounds.minY < margin || newBounds.maxY > height - margin) {
+      newShape.translate(-x, -y); // Reset position
       continue;
     }
     
-    if (isFirst) return;
+    // Check for overlap
+    const hasOverlap = !(newBounds.maxX < existingBounds.minX || 
+                        newBounds.minX > existingBounds.maxX ||
+                        newBounds.maxY < existingBounds.minY || 
+                        newBounds.minY > existingBounds.maxY);
+                        
+    if (hasOverlap) {
+      return true;
+    }
     
-    // Check for overlap with at least one existing shape
-    const hasOverlap = existingShapes.some(existing => {
-      const existingBounds = existing.getBounds();
-      return !(bounds.maxX < existingBounds.minX || 
-               bounds.minX > existingBounds.maxX ||
-               bounds.maxY < existingBounds.minY || 
-               bounds.minY > existingBounds.maxY);
-    });
-    
-    if (hasOverlap) return;
-    
-    shape.translate(-shape.x, -shape.y);
-    attempts++;
+    newShape.translate(-x, -y); // Reset position
   }
   
-  shape.translate(gameWidth/2, gameHeight/2);
+  return false;
 };
 
+// Merge all shapes and return vertices, removing internal lines
 const mergeShapes = (shapes: Shape[]): Point[] => {
-  // Project all vertices onto a binary grid
-  const gridSize = 400;
-  const grid = Array(gridSize).fill(0).map(() => Array(gridSize).fill(false));
+  const allPoints = new Set<string>();
+  const internalPoints = new Set<string>();
   
-  // Fill grid with shapes
   shapes.forEach(shape => {
-    shape.vertices.forEach((vertex, i) => {
-      const nextVertex = shape.vertices[(i + 1) % shape.vertices.length];
-      
-      // Draw line between vertices
-      const steps = 20; // Resolution of line drawing
-      for (let t = 0; t < 1; t += 1/steps) {
-        const x = Math.floor((vertex[0] * (1-t) + nextVertex[0] * t) / 400 * gridSize);
-        const y = Math.floor((vertex[1] * (1-t) + nextVertex[1] * t) / 400 * gridSize);
-        if (x >= 0 && x < gridSize && y >= 0 && y < gridSize) {
-          grid[y][x] = true;
-        }
+    shape.vertices.forEach(point => {
+      const key = `${point[0].toFixed(1)},${point[1].toFixed(1)}`;
+      if (allPoints.has(key)) {
+        internalPoints.add(key);
+      } else {
+        allPoints.add(key);
       }
     });
   });
   
-  // Extract outline points
-  const outlinePoints: Point[] = [];
-  const checkNeighbor = (x: number, y: number): boolean => {
-    if (x < 0 || x >= gridSize || y < 0 || y >= gridSize) return false;
-    return grid[y][x];
-  };
-  
-  for (let y = 0; y < gridSize; y++) {
-    for (let x = 0; x < gridSize; x++) {
-      if (!grid[y][x]) continue;
-      
-      // Check if point is on the outline
-      const neighbors = [
-        checkNeighbor(x-1, y),
-        checkNeighbor(x+1, y),
-        checkNeighbor(x, y-1),
-        checkNeighbor(x, y+1)
-      ];
-      
-      if (neighbors.includes(false)) {
-        outlinePoints.push([x * 400 / gridSize, y * 400 / gridSize]);
-      }
-    }
-  }
-  
-  return outlinePoints;
+  // Return only non-internal points
+  return Array.from(allPoints)
+    .filter(key => !internalPoints.has(key))
+    .map(key => {
+      const [x, y] = key.split(',').map(Number);
+      return [x, y];
+    });
 };
 
+// Select 2-3 spouts from the vertices
 const selectSpouts = (vertices: Point[]): Point[] => {
-  const numSpouts = 2 + Math.floor(Math.random() * 2); // 2 or 3 spouts
+  const numSpouts = 2 + Math.floor(Math.random() * 2);
   const sortedByHeight = [...vertices].sort((a, b) => a[1] - b[1]);
   const topThird = sortedByHeight.slice(0, Math.floor(vertices.length / 3));
   
-  // Randomly select points from the top third
   const spouts: Point[] = [];
   while (spouts.length < numSpouts && topThird.length > 0) {
     const index = Math.floor(Math.random() * topThird.length);
@@ -138,19 +116,28 @@ const selectSpouts = (vertices: Point[]): Point[] => {
 };
 
 export const generateCompoundShape = (width: number, height: number): number[][] => {
+  // 1. Select random number of shapes
   const numShapes = 2 + Math.floor(Math.random() * (MAX_OBJECTS - 1));
   const shapes: Shape[] = [];
   
-  // Generate and place shapes
-  for (let i = 0; i < numShapes; i++) {
-    const shape = createRandomShape();
-    findValidPosition(shape, shapes, width, height, i === 0);
-    shapes.push(shape);
+  // 2. Create and place first shape
+  const firstShape = createRandomShape();
+  placeFirstShape(firstShape, width, height);
+  shapes.push(firstShape);
+  
+  // 3. Add remaining shapes with overlap
+  for (let i = 1; i < numShapes; i++) {
+    const newShape = createRandomShape();
+    const existingShapeIndex = Math.floor(Math.random() * shapes.length);
+    
+    if (placeOverlappingShape(newShape, shapes[existingShapeIndex], width, height)) {
+      shapes.push(newShape);
+    }
   }
   
-  // Get outline of combined shapes
-  const outline = mergeShapes(shapes);
+  // 4. Get outline vertices (removing internal lines)
+  const outlineVertices = mergeShapes(shapes);
   
-  // Select and return spout vertices
-  return selectSpouts(outline);
+  // 5. Select and return spouts
+  return selectSpouts(outlineVertices);
 };
