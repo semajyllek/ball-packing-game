@@ -26,17 +26,17 @@ const BallPackingGame = () => {
   const requestRef = useRef<number>();
   const containerRef = useRef<HTMLDivElement>(null);
 
-
   const generateShape = () => {
     // Define canvas dimensions
     const width = 400;
     const height = 400;
     
     try {
-      // Generate vertices using cellular automata
-      const newVertices = generateCompoundShape(width, height);
+      // Generate compound shape by merging random geometric shapes
+      const shape = generateCompoundShape(width, height);
+      const newVertices = shape.outline;
       
-      console.log('Generated vertices:', newVertices); // Debug log
+      console.log('Generated vertices:', newVertices);
   
       // Validate vertices
       if (!newVertices || newVertices.length < 3) {
@@ -307,12 +307,12 @@ const BallPackingGame = () => {
               />
             ))}
             
-            {/* Only render clickable vertices for the outer points */}
-            {vertices.map((vertex, index) => (
+            {/* Only render the spouts as clickable vertices */}
+            {generatedShape?.spouts.map((spout, index) => (
               <circle
                 key={index}
-                cx={vertex[0]}
-                cy={vertex[1]}
+                cx={spout[0]}
+                cy={spout[1]}
                 r="8"
                 fill={index === selectedVertex ? "red" : "#666"}
                 stroke="white"
@@ -342,6 +342,3 @@ const BallPackingGame = () => {
       </div>
     </div>
   );
-};
-
-export default BallPackingGame;
