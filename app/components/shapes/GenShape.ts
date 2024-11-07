@@ -1,138 +1,101 @@
-type Point = [number, number];
-type Shape = Point[];
+import { Point, Shape, Rectangle, Circle, Triangle, Star } from './ShapeClasses';
 
-const createRect = (x: number, y: number, width: number, height: number): Shape => {
-  return [
-    [x - width/2, y - height/2],
-    [x + width/2, y - height/2],
-    [x + width/2, y + height/2],
-    [x - width/2, y + height/2]
-  ];
-};
+const MAX_OBJECTS = 10;
+const MIN_SIZE = 30;
+const MAX_SIZE = 80;
 
-const createTriangle = (x: number, y: number, size: number): Shape => {
-  return [
-    [x, y - size/2],
-    [x + size/2, y + size/2],
-    [x - size/2, y + size/2]
-  ];
-};
-
-const createSemiCircle = (x: number, y: number, radius: number): Shape => {
-  const points: Shape = [];
-  for (let i = 0; i <= 8; i++) {
-    const angle = (Math.PI * i) / 8;
-    points.push([
-      x + Math.cos(angle) * radius,
-      y + Math.sin(angle) * radius
-    ]);
-  }
-  return points;
-};
-
-const joinShapes = (shape1: Shape, shape2: Shape): Shape => {
-  let minDist = Infinity;
-  let connect1 = 0, connect2 = 0;
+const createRandomShape = (gameWidth: number, gameHeight: number): Shape => {
+  const shapeType = Math.floor(Math.random() * 4);
+  const x = 0;  // Will be positioned later
+  const y = 0;
   
-  shape1.forEach((p1, i) => {
-    shape2.forEach((p2, j) => {
-      const dist = Math.hypot(p2[0] - p1[0], p2[1] - p1[1]);
-      if (dist < minDist) {
-        minDist = dist;
-        connect1 = i;
-        connect2 = j;
-      }
+  switch (shapeType) {
+    case 0:
+      const width = MIN_SIZE + Math.random() * (MAX_SIZE - MIN_SIZE);
+      const height = MIN_SIZE + Math.random() * (MAX_SIZE - MIN_SIZE);
+      return new Rectangle(x, y, width, height);
+    case 1:
+      const radius = (MIN_SIZE + Math.random() * (MAX_SIZE - MIN_SIZE)) / 2;
+      return new Circle(x, y, radius);
+    case 2:
+      const size = MIN_SIZE + Math.random() * (MAX_SIZE - MIN_SIZE);
+      return new Triangle(x, y, size);
+    default:
+      const starRadius = (MIN_SIZE + Math.random() * (MAX_SIZE - MIN_SIZE)) / 2;
+      return new Star(x, y, starRadius);
+  }
+};
+
+const findValidPosition = (
+  shape: Shape, 
+  existingShapes: Shape[], 
+  gameWidth: number, 
+  gameHeight: number,
+  isFirst: boolean
+): void => {
+  let attempts = 0;
+  const maxAttempts = 100;
+  
+  while (attempts < maxAttempts) {
+    const x = Math.random() * gameWidth;
+    const y = Math.random() * gameHeight;
+    shape.translate(x - shape.x, y - shape.y);
+    
+    const bounds = shape.getBounds();
+    const inBounds = bounds.minX >= 0 && bounds.maxX <= gameWidth && 
+                    bounds.minY >= 0 && bounds.maxY <= gameHeight;
+    
+    if (!inBounds) {
+      shape.translate(-shape.x, -shape.y);  // Reset position
+      attempts++;
+      continue;
+    }
+    
+    if (isFirst) return;  // First shape only needs to be in bounds
+    
+    // Check for overlap with at least one existing shape
+    const hasOverlap = existingShapes.some(existing => {
+      const existingBounds = existing.getBounds();
+      return !(bounds.maxX < existingBounds.minX || 
+               bounds.minX > existingBounds.maxX ||
+               bounds.maxY < existingBounds.minY || 
+               bounds.minY > existingBounds.maxY);
+    });
+    
+    if (hasOverlap) return;
+    
+    shape.translate(-shape.x, -shape.y);  // Reset and try again
+    attempts++;
+  }
+  
+  // If we couldn't find a valid position, place it near the center
+  shape.translate(gameWidth/2, gameHeight/2);
+};
+
+const mergeShapes = (shapes: Shape[]): Point[] => {
+  const allPoints = new Map<string, Point>();
+  
+  shapes.forEach(shape => {
+    shape.vertices.forEach(vertex => {
+      const key = `${vertex[0].toFixed(1)},${vertex[1].toFixed(1)}`;
+      allPoints.set(key, vertex);
     });
   });
   
-  const combined = [
-    ...shape1.slice(0, connect1),
-    ...shape2.slice(connect2),
-    ...shape2.slice(0, connect2),
-    ...shape1.slice(connect1)
-  ];
-  
-  const simplified: Shape = [];
-  const minDistSq = 25;
-  
-  for (let i = 0; i < combined.length; i++) {
-    const p1 = combined[i];
-    const p2 = combined[(i + 1) % combined.length];
-    const distSq = Math.pow(p2[0] - p1[0], 2) + Math.pow(p2[1] - p1[1], 2);
-    if (distSq > minDistSq) {
-      simplified.push(p1);
-    }
-  }
-  
-  return simplified;
-};
-
-const addSpouts = (shape: Shape): Shape => {
-  const numSpouts = 2 + Math.floor(Math.random() * 2);
-  const spoutIndices = new Set<number>();
-  
-  const sortedIndices = shape.map((_, i) => i)
-    .sort((a, b) => shape[a][1] - shape[b][1])
-    .slice(0, Math.ceil(shape.length / 2));
-  
-  while (spoutIndices.size < numSpouts) {
-    const index = sortedIndices[Math.floor(Math.random() * sortedIndices.length)];
-    spoutIndices.add(index);
-  }
-  
-  return shape.map((point, i) => 
-    spoutIndices.has(i) ? [point[0], point[1] - 2] : point
-  );
+  return Array.from(allPoints.values());
 };
 
 export const generateCompoundShape = (width: number, height: number): number[][] => {
-  // Start from left side and work towards right
-  let currentX = width * 0.1;
-  let currentY = height * 0.3;
-  let combinedShape: Shape;
+  const numShapes = 2 + Math.floor(Math.random() * (MAX_OBJECTS - 1));
+  const shapes: Shape[] = [];
   
-  // Create 4-8 shapes spread across the canvas
-  const numShapes = 4 + Math.floor(Math.random() * 5);
-  const baseSize = Math.min(width, height) * 0.15;
-  
-  // Start with first shape
-  combinedShape = createRect(currentX, currentY, baseSize * 0.8, baseSize * 0.6);
-  
-  for (let i = 1; i < numShapes; i++) {
-    // Move right and vary Y position
-    currentX += baseSize * (0.8 + Math.random() * 1.2);
-    currentY += (Math.random() - 0.5) * baseSize * 1.5;
-    
-    // Keep Y within bounds
-    currentY = Math.max(height * 0.2, Math.min(height * 0.8, currentY));
-    
-    // Vary shape type and size
-    const shapeSize = baseSize * (0.6 + Math.random() * 0.8);
-    let newShape: Shape;
-    
-    const shapeType = Math.floor(Math.random() * 3);
-    switch (shapeType) {
-      case 0:
-        newShape = createRect(currentX, currentY, shapeSize, shapeSize * 0.8);
-        break;
-      case 1:
-        newShape = createTriangle(currentX, currentY, shapeSize);
-        break;
-      case 2:
-        newShape = createSemiCircle(currentX, currentY, shapeSize/2);
-        break;
-      default:
-        newShape = createRect(currentX, currentY, shapeSize, shapeSize);
-    }
-    
-    combinedShape = joinShapes(combinedShape, newShape);
+  // Generate and place shapes
+  for (let i = 0; i < numShapes; i++) {
+    const shape = createRandomShape(width, height);
+    findValidPosition(shape, shapes, width, height, i === 0);
+    shapes.push(shape);
   }
   
-  // If we have too many vertices, simplify by sampling
-  if (combinedShape.length > 12) {
-    const stride = Math.ceil(combinedShape.length / 12);
-    combinedShape = combinedShape.filter((_, i) => i % stride === 0);
-  }
-  
-  return addSpouts(combinedShape);
+  // Merge all shapes into single vertex list
+  return mergeShapes(shapes);
 };
