@@ -1,20 +1,17 @@
-import { Point } from './GeometryUtils';
 import { Shape, Rectangle, Circle, Triangle, Star } from './ShapeClasses';
-import { mergeShapes } from './ShapeMerger';
+import { Point } from './GeometryUtils';
 
 // Constants
-const MIN_SIZE = 60;   // Increased minimum size
-const MAX_SIZE = 200;  // Decreased maximum size for better composition
+const MIN_SIZE = 60;
+const MAX_SIZE = 200;
 const MIN_SHAPES = 3;
-const MAX_SHAPES = 5;  // Reduced max shapes for clearer composition
+const MAX_SHAPES = 5;
 
 const createRandomShape = (): Shape => {
     const shapeType = Math.floor(Math.random() * 4);
     const x = 0;
     const y = 0;
-    
-    // Randomize sizes more dramatically
-    const sizeMultiplier = 0.5 + Math.random() * 1.5; // 0.5x to 2x size variation
+    const sizeMultiplier = 0.5 + Math.random() * 1.5;
     
     switch (shapeType) {
         case 0:
@@ -29,91 +26,153 @@ const createRandomShape = (): Shape => {
             return new Triangle(x, y, size);
         default:
             const starRadius = ((MIN_SIZE + Math.random() * (MAX_SIZE - MIN_SIZE)) / 2) * sizeMultiplier;
-            const points = 5 + Math.floor(Math.random() * 4); // 5-8 points
+            const points = 5 + Math.floor(Math.random() * 4);
             return new Star(x, y, starRadius, points);
     }
 };
 
-const placeFirstShape = (shape: Shape, width: number, height: number): void => {
-    const x = width/2 - MAX_SIZE/2 + Math.random() * MAX_SIZE;
-    const y = height/2 - MAX_SIZE/2 + Math.random() * MAX_SIZE;
-    shape.translate(x, y);
+const isPointInShape = (point: Point, shape: Shape): boolean => {
+    const vertices = shape.getVertices();
+    let inside = false;
+    
+    for (let i = 0, j = vertices.length - 1; i < vertices.length; j = i++) {
+        const xi = vertices[i][0], yi = vertices[i][1];
+        const xj = vertices[j][0], yj = vertices[j][1];
+        
+        const intersect = ((yi > point[1]) !== (yj > point[1])) &&
+            (point[0] < (xj - xi) * (point[1] - yi) / (yj - yi) + xi);
+        
+        if (intersect) inside = !inside;
+    }
+    
+    return inside;
 };
 
-const placeOverlappingShape = (newShape: Shape, existingShape: Shape, width: number, height: number): boolean => {
+const findOverlappingPosition = (newShape: Shape, existingShape: Shape): boolean => {
     const existingBounds = existingShape.getBounds();
-    const margin = MAX_SIZE / 2;
-    const minOverlap = MIN_SIZE / 2; // Increased minimum overlap
+    const centerX = (existingBounds.maxX + existingBounds.minX) / 2;
+    const centerY = (existingBounds.maxY + existingBounds.minY) / 2;
     
     for (let attempt = 0; attempt < 50; attempt++) {
-        // Generate position relative to existing shape
+        // Generate position near existing shape
         const angle = Math.random() * Math.PI * 2;
-        const distance = MIN_SIZE/2 + Math.random() * MAX_SIZE/2;
+        const distance = MIN_SIZE / 4 + Math.random() * (MAX_SIZE / 4);
         
-        const x = existingBounds.minX + (existingBounds.maxX - existingBounds.minX)/2 + 
-                 Math.cos(angle) * distance;
-        const y = existingBounds.minY + (existingBounds.maxY - existingBounds.minY)/2 + 
-                 Math.sin(angle) * distance;
+        const x = centerX + Math.cos(angle) * distance;
+        const y = centerY + Math.sin(angle) * distance;
         
         newShape.translate(x, y);
-        const newBounds = newShape.getBounds();
         
-        // Check boundaries
-        if (newBounds.minX < margin || 
-            newBounds.maxX > width - margin || 
-            newBounds.minY < margin || 
-            newBounds.maxY > height - margin) {
-            newShape.translate(-x, -y);
-            continue;
+        // Check if shapes overlap
+        const newVertices = newShape.getVertices();
+        let hasOverlap = false;
+        let allInside = true;
+        
+        for (const vertex of newVertices) {
+            const isInside = isPointInShape(vertex, existingShape);
+            if (isInside) {
+                hasOverlap = true;
+            } else {
+                allInside = false;
+            }
         }
         
-        // Check overlap
-        const overlapX = Math.min(newBounds.maxX, existingBounds.maxX) - 
-                        Math.max(newBounds.minX, existingBounds.minX);
-        const overlapY = Math.min(newBounds.maxY, existingBounds.maxY) - 
-                        Math.max(newBounds.minY, existingBounds.minY);
-
-        if (overlapX > minOverlap && overlapY > minOverlap) {
-            // Add random rotation
-            const rotation = (Math.random() - 0.5) * Math.PI / 2; // -45 to 45 degrees
-            newShape.rotate(rotation);
+        // We want some overlap but not complete containment
+        if (hasOverlap && !allInside) {
             return true;
         }
         
+        // Reset position for next attempt
         newShape.translate(-x, -y);
     }
     
     return false;
 };
 
+const mergeShapes = (shapes: Shape[]): Point[] => {
+    // Get all vertices from all shapes
+    const allVertices = shapes.flatMap(shape => shape.getVertices()) as Point[];
+    
+    // Remove vertices that are inside any other shape
+    const outerVertices = allVertices.filter(vertex => {
+        // Count how many shapes this vertex is inside of
+        let insideCount = 0;
+        for (const shape of shapes) {
+            if (isPointInShape(vertex, shape)) {
+                insideCount++;
+            }
+        }
+        // Keep vertex only if it's inside exactly one shape
+        return insideCount === 1;
+    });
+    
+    // Sort vertices to form a continuous outline
+    const sortedVertices: Point[] = [];
+    const remaining = [...outerVertices];
+    
+    // Start with leftmost point
+    let current = remaining.reduce((leftmost, vertex) => 
+        vertex[0] < leftmost[0] ? vertex : leftmost
+    );
+    
+    while (remaining.length > 0) {
+        const index = remaining.findIndex(v => v[0] === current[0] && v[1] === current[1]);
+        if (index === -1) break;
+        
+        sortedVertices.push(current);
+        remaining.splice(index, 1);
+        
+        if (remaining.length === 0) break;
+        
+        // Find next vertex by angle
+        const center = {
+            x: sortedVertices.reduce((sum, v) => sum + v[0], 0) / sortedVertices.length,
+            y: sortedVertices.reduce((sum, v) => sum + v[1], 0) / sortedVertices.length
+        };
+        
+        const currentAngle = Math.atan2(current[1] - center.y, current[0] - center.x);
+        
+        current = remaining.reduce((next, vertex) => {
+            const angle = Math.atan2(vertex[1] - center.y, vertex[0] - center.x);
+            let angleDiff = angle - currentAngle;
+            if (angleDiff < 0) angleDiff += Math.PI * 2;
+            
+            const nextAngle = Math.atan2(next[1] - center.y, next[0] - center.x);
+            let nextDiff = nextAngle - currentAngle;
+            if (nextDiff < 0) nextDiff += Math.PI * 2;
+            
+            return angleDiff < nextDiff ? vertex : next;
+        });
+    }
+    
+    return sortedVertices;
+};
+
 export const generateCompoundShape = (width: number, height: number): GeneratedShape => {
-    const numShapes = MIN_SHAPES + Math.floor(Math.random() * (MAX_SHAPES - MIN_SHAPES + 1));
     const shapes: Shape[] = [];
     let attempts = 0;
     const maxAttempts = 100;
 
-    // Create first shape
+    // Create and place first shape
     const firstShape = createRandomShape();
-    placeFirstShape(firstShape, width, height);
+    firstShape.translate(width/2, height/2);
     shapes.push(firstShape);
 
-    // Add remaining shapes with more variation
-    while (shapes.length < numShapes && attempts < maxAttempts) {
+    // Add remaining shapes
+    while (shapes.length < MIN_SHAPES && attempts < maxAttempts) {
         const newShape = createRandomShape();
-        let placed = false;
         
         // Try to overlap with any existing shape
-        for (let i = 0; i < shapes.length && !placed; i++) {
-            if (placeOverlappingShape(newShape, shapes[i], width, height)) {
-                // Add random scaling
-                const scale = 0.75 + Math.random() * 0.5; // 0.75x to 1.25x
-                newShape.scale(scale);
+        let placed = false;
+        for (const existingShape of shapes) {
+            if (findOverlappingPosition(newShape, existingShape)) {
                 shapes.push(newShape);
                 placed = true;
+                break;
             }
         }
         
-        attempts++;
+        if (!placed) attempts++;
     }
 
     // Ensure minimum shapes requirement
@@ -121,15 +180,21 @@ export const generateCompoundShape = (width: number, height: number): GeneratedS
         return createFallbackShape(width, height);
     }
 
-    const mergedOutline = mergeShapes(shapes);
+    // Merge shapes and get outline
+    const outline = mergeShapes(shapes);
     
-    // Ensure each point is a proper tuple
-    const outline: Point[] = mergedOutline.map(([x, y]) => [x, y]);
+    // Select random vertices as spouts (1-3)
+    const numSpouts = 1 + Math.floor(Math.random() * 3);
+    const spouts: Point[] = [];
+    const availableVertices = [...outline];
     
-    return {
-        outline,
-        spouts: selectRandomSpouts(outline)
-    };
+    for (let i = 0; i < numSpouts && availableVertices.length > 0; i++) {
+        const index = Math.floor(Math.random() * availableVertices.length);
+        spouts.push(availableVertices[index]);
+        availableVertices.splice(index, 1);
+    }
+    
+    return { outline, spouts };
 };
 
 const createFallbackShape = (width: number, height: number): GeneratedShape => {
@@ -137,59 +202,26 @@ const createFallbackShape = (width: number, height: number): GeneratedShape => {
     const centerY = height / 2;
     const radius = Math.min(width, height) / 4;
     
-    const points = 6 + Math.floor(Math.random() * 4); // 6-9 points
-    const fallbackOutline: Point[] = [];
+    const points = 6 + Math.floor(Math.random() * 4);
+    const outline: Point[] = [];
     
     for (let i = 0; i < points; i++) {
         const angle = (i / points) * Math.PI * 2;
-        const r = radius * (0.8 + Math.random() * 0.4); // Vary radius
-        fallbackOutline.push([
-            centerX + Math.cos(angle) * r * (1 + Math.random() * 0.3),
-            centerY + Math.sin(angle) * r * (1 + Math.random() * 0.3)
-        ] as Point); // Explicitly cast as Point
+        const r = radius * (0.8 + Math.random() * 0.4);
+        outline.push([
+            centerX + Math.cos(angle) * r,
+            centerY + Math.sin(angle) * r
+        ] as Point);
     }
     
-    return {
-        outline: fallbackOutline,
-        spouts: selectRandomSpouts(fallbackOutline)
-    };
-};
-
-const selectRandomSpouts = (vertices: Point[]): Point[] => {
-    const numSpouts = 2 + Math.floor(Math.random() * 2); // 2-3 spouts
-    const sortedByHeight = [...vertices].sort((a, b) => a[1] - b[1]);
-    const topHalf = sortedByHeight.slice(0, Math.floor(vertices.length / 2));
+    // Select 1-3 random vertices as spouts
+    const numSpouts = 1 + Math.floor(Math.random() * 3);
+    const spouts = outline
+        .slice()
+        .sort(() => Math.random() - 0.5)
+        .slice(0, numSpouts);
     
-    // Ensure spouts are spread out
-    const spouts: Point[] = [];
-    const angleSegments = Math.PI / (numSpouts + 1);
-    
-    for (let i = 0; i < numSpouts && topHalf.length > 0; i++) {
-        const targetAngle = angleSegments * (i + 1);
-        const center: Point = [
-            vertices.reduce((sum, v) => sum + v[0], 0) / vertices.length,
-            vertices.reduce((sum, v) => sum + v[1], 0) / vertices.length
-        ];
-        
-        // Find point closest to desired angle
-        let bestPoint = topHalf[0];
-        let bestAngleDiff = Math.PI * 2;
-        
-        topHalf.forEach(point => {
-            const angle = Math.atan2(point[1] - center[1], point[0] - center[0]);
-            const angleDiff = Math.abs(angle - targetAngle);
-            if (angleDiff < bestAngleDiff) {
-                bestAngleDiff = angleDiff;
-                bestPoint = point;
-            }
-        });
-        
-        spouts.push(bestPoint);
-        const index = topHalf.indexOf(bestPoint);
-        topHalf.splice(index, 1);
-    }
-    
-    return spouts;
+    return { outline, spouts };
 };
 
 export interface GeneratedShape {
