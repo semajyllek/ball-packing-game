@@ -18,6 +18,8 @@ interface Ball {
   color: string;
 }
 
+const [spouts, setSpouts] = useState<number[][]>([]);
+
 
 const BallPackingGame = () => {
   const [balls, setBalls] = useState<Ball[]>([]);
@@ -35,9 +37,9 @@ const BallPackingGame = () => {
     const height = 400;
     
     try {
-      // Generate compound shape by merging random geometric shapes
       const shape = generateCompoundShape(width, height);
       const newVertices = shape.outline;
+      const newSpouts = shape.spouts;
       
       console.log('Generated vertices:', newVertices);
   
@@ -73,7 +75,9 @@ const BallPackingGame = () => {
       // Update state with new shape
       setVertices(validVertices);
       setTriangles(newTriangles);
+      setSpouts(newSpouts);
       setSelectedVertex(0);
+
   
     } catch (error) {
       console.log('Error generating shape:', error);
@@ -86,11 +90,23 @@ const BallPackingGame = () => {
         [100, 250], // bottom left
         [100, 150], // top left
       ];
-  
+
+      const fallbackSpouts = [
+        [200, 100], // top
+        [300, 150], // top right
+      ];
+
       const centerPoint = [200, 200];
       const fallbackTriangles = fallbackVertices.map((vertex, i) => {
-        const nextVertex = fallbackVertices[(i + 1) % fallbackVertices.length];
-        return [centerPoint, vertex, nextVertex];
+      const nextVertex = fallbackVertices[(i + 1) % fallbackVertices.length];
+
+      setVertices(fallbackVertices);
+      setTriangles(fallbackTriangles);
+      setSpouts(fallbackSpouts);
+      setSelectedVertex(0);
+
+     
+      return [centerPoint, vertex, nextVertex];
       });
   
       setVertices(fallbackVertices);
@@ -134,9 +150,9 @@ const BallPackingGame = () => {
   };
 
   const handleClick = () => {
-    if (!gameWon && vertices.length > 0) {
+    if (!gameWon && spouts.length > 0) {
       const ballType = getRandomBallSize();
-      const dropPoint = vertices[selectedVertex];  // Use selected vertex directly
+      const dropPoint = spouts[selectedVertex];  // Use selected spout instead of vertex
       const newBall = {
         id: balls.length,
         x: dropPoint[0],
@@ -310,19 +326,19 @@ const BallPackingGame = () => {
               />
             ))}
             
-            {vertices.map((vertex, index) => (
+            {spouts.map((spout, index) => (
               <circle
-                key={index}
-                cx={vertex[0]}
-                cy={vertex[1]}
-                r="8"
-                fill={index === selectedVertex ? "red" : "#666"}
-                stroke="white"
-                strokeWidth="2"
-                onClick={(e) => handleVertexClick(index, e)}
-                style={{ cursor: 'pointer' }}
-              />
-            ))}
+            key={index}
+            cx={spout[0]}
+            cy={spout[1]}
+            r="8"
+            fill={index === selectedVertex ? "red" : "#666"}
+            stroke="white"
+            strokeWidth="2"
+            onClick={(e) => handleVertexClick(index, e)}
+            style={{ cursor: 'pointer' }}
+            />
+          ))}
             
             {balls.map(ball => (
               <circle
