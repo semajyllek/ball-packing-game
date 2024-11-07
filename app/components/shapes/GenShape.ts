@@ -16,15 +16,13 @@ const createRandomShape = (): Shape => {
       return new Rectangle(x, y, width, height);
     case 1:
       const radius = (MIN_SIZE + Math.random() * (MAX_SIZE - MIN_SIZE)) / 2;
-      // Use far fewer segments for circle
-      return new Circle(x, y, radius, 6);
+      return new Circle(x, y, radius);
     case 2:
       const size = MIN_SIZE + Math.random() * (MAX_SIZE - MIN_SIZE);
       return new Triangle(x, y, size);
     default:
       const starRadius = (MIN_SIZE + Math.random() * (MAX_SIZE - MIN_SIZE)) / 2;
-      // Use fewer points for star
-      return new Star(x, y, starRadius, 3);
+      return new Star(x, y, starRadius);
   }
 };
 
@@ -73,22 +71,22 @@ const findValidPosition = (
   shape.translate(gameWidth/2, gameHeight/2);
 };
 
-const selectThreeVertices = (points: Point[]): Point[] => {
-  // Prefer highest points for better gameplay
-  const sortedPoints = [...points].sort((a, b) => a[1] - b[1]);
-  const numPoints = Math.min(3, sortedPoints.length);
+const selectSpouts = (allVertices: Point[]): Point[] => {
+  // Sort points by height (y-coordinate) to prefer higher points
+  const sortedPoints = [...allVertices].sort((a, b) => a[1] - b[1]);
   
   // Take 2-3 points from the top half
+  const numSpouts = 2 + Math.floor(Math.random() * 2); // 2 or 3 spouts
   const topHalf = sortedPoints.slice(0, Math.ceil(sortedPoints.length / 2));
-  const selectedPoints: Point[] = [];
+  const spouts: Point[] = [];
   
-  while (selectedPoints.length < numPoints && topHalf.length > 0) {
+  while (spouts.length < numSpouts && topHalf.length > 0) {
     const randomIndex = Math.floor(Math.random() * topHalf.length);
-    selectedPoints.push(topHalf[randomIndex]);
+    spouts.push(topHalf[randomIndex]);
     topHalf.splice(randomIndex, 1);
   }
   
-  return selectedPoints;
+  return spouts;
 };
 
 export const generateCompoundShape = (width: number, height: number): number[][] => {
@@ -102,15 +100,9 @@ export const generateCompoundShape = (width: number, height: number): number[][]
     shapes.push(shape);
   }
   
-  // Collect all unique vertices
-  const uniquePoints = new Map<string, Point>();
-  shapes.forEach(shape => {
-    shape.vertices.forEach(vertex => {
-      const key = `${vertex[0].toFixed(1)},${vertex[1].toFixed(1)}`;
-      uniquePoints.set(key, vertex);
-    });
-  });
+  // Get all vertices from all shapes
+  const allVertices = shapes.flatMap(shape => shape.vertices);
   
-  // Select only three vertices for spouts
-  return selectThreeVertices(Array.from(uniquePoints.values()));
+  // Select and return only the spout vertices
+  return selectSpouts(allVertices);
 };
