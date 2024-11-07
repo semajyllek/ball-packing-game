@@ -7,9 +7,13 @@ const MIN_SIZE = 60;
 const MAX_SIZE = 400;
 const MIN_SHAPES = 6;
 
+
+
 const randomInRange = (min: number, max: number): number => {
     return min + Math.random() * (max - min);
 };
+
+
 
 const createRandomShape = (): Shape => {
     const shapeType = Math.floor(Math.random() * 4);
@@ -34,46 +38,140 @@ const createRandomShape = (): Shape => {
     }
 };
 
-const findOverlappingPosition = (newShape: Shape, existingShape: Shape): boolean => {
-    const existingBounds = existingShape.getBounds();
-    const centerX = (existingBounds.maxX + existingBounds.minX) / 2;
-    const centerY = (existingBounds.maxY + existingBounds.minY) / 2;
+
+interface OverlapResult {
+    overlapCount: number;
+    outsideCount: number;
+}
+
+const checkOverlap = (vertices: number[][], existingShape: Shape): OverlapResult => {
+    let overlapCount = 0;
+    let outsideCount = 0;
     
-    // Try offsets based on MIN_SIZE for meaningful overlap
-    const offsets = [-MIN_SIZE/2, 0, MIN_SIZE/2];
+    for (const vertex of vertices) {
+        const isInside = isPointInShape([vertex[0], vertex[1]], existingShape);
+        if (isInside) {
+            overlapCount++;
+        } else {
+            outsideCount++;
+        }
+    }
     
-    for (const offsetX of offsets) {
-        for (const offsetY of offsets) {
-            const x = centerX + offsetX;
-            const y = centerY + offsetY;
-            
-            newShape.translate(x, y);
-            
-            // Check for overlap
-            const newVertices = newShape.getVertices();
-            let overlapCount = 0;
-            let outsideCount = 0;
-            
-            for (const vertex of newVertices) {
-                const isInside = isPointInShape([vertex[0], vertex[1]], existingShape);
-                if (isInside) {
-                    overlapCount++;
-                } else {
-                    outsideCount++;
+    return { overlapCount, outsideCount };
+};
+
+const isGoodOverlap = (result: OverlapResult): boolean => {
+    return result.overlapCount === 1 && result.outsideCount > 0;
+};
+
+const tryPosition = (
+    newShape: Shape,
+    x: number,
+    y: number,
+    existingShape: Shape
+): boolean => {
+    newShape.translate(x, y);
+    
+    const overlap = checkOverlap(newShape.getVertices(), existingShape);
+    const success = isGoodOverlap(overlap);
+    
+    if (!success) {
+        newShape.translate(-x, -y);
+    }
+    
+    return success;
+};
+
+const tryVertexBasedPlacement = (
+    newShape: Shape,
+    existingShape: Shape,
+    offsets: number[]
+): boolean => {
+    const existingVertices = existingShape.getVertices();
+    
+    for (const vertex of existingVertices) {
+        for (const offsetX of offsets) {
+            for (const offsetY of offsets) {
+                const x = vertex[0] + offsetX;
+                const y = vertex[1] + offsetY;
+                
+                if (tryPosition(newShape, x, y, existingShape)) {
+                    return true;
                 }
             }
-            
-            // We want some vertices inside and some outside for good overlap
-            if (overlapCount > 0 && outsideCount > 0) {
-                return true;
-            }
-            
-            newShape.translate(-x, -y);
         }
     }
     
     return false;
 };
+
+const calculateEdgeNormal = (edge: {start: Point, end: Point}): {x: number, y: number} => {
+    const edgeLength = Math.sqrt(
+        Math.pow(edge.end[0] - edge.start[0], 2) + 
+        Math.pow(edge.end[1] - edge.start[1], 2)
+    );
+    
+    return {
+        x: -(edge.end[1] - edge.start[1]) / edgeLength,
+        y: (edge.end[0] - edge.start[0]) / edgeLength
+    };
+};
+
+const tryEdgeBasedPlacement = (
+    newShape: Shape,
+    existingShape: Shape,
+    distances: number[]
+): boolean => {
+    const edges = getShapeEdges(existingShape);
+    
+    for (const edge of edges) {
+        const edgeMidX = (edge.start[0] + edge.end[0]) / 2;
+        const edgeMidY = (edge.start[1] + edge.end[1]) / 2;
+        
+        const normal = calculateEdgeNormal(edge);
+        
+        for (const distance of distances) {
+            const x = edgeMidX + normal.x * distance;
+            const y = edgeMidY + normal.y * distance;
+            
+            if (tryPosition(newShape, x, y, existingShape)) {
+                return true;
+            }
+        }
+    }
+    
+    return false;
+};
+
+const findOverlappingPosition = (newShape: Shape, existingShape: Shape): boolean => {
+    const offsets = [-MIN_SIZE/4, 0, MIN_SIZE/4];
+    const distances = [MIN_SIZE/4, MIN_SIZE/2];
+    
+    // Try vertex-based placement first
+    if (tryVertexBasedPlacement(newShape, existingShape, offsets)) {
+        return true;
+    }
+    
+    // Fall back to edge-based placement
+    return tryEdgeBasedPlacement(newShape, existingShape, distances);
+};
+
+const getShapeEdges = (shape: Shape): Array<{start: Point, end: Point}> => {
+    const vertices = shape.getVertices();
+    const edges: Array<{start: Point, end: Point}> = [];
+    
+    for (let i = 0; i < vertices.length; i++) {
+        const start = vertices[i];
+        const end = vertices[(i + 1) % vertices.length];
+        edges.push({
+            start: [start[0], start[1]] as Point,
+            end: [end[0], end[1]] as Point
+        });
+    }
+    
+    return edges;
+};
+
 
 export const generateCompoundShape = (width: number, height: number): GeneratedShape => {
     const shapes: Shape[] = [];
