@@ -121,7 +121,11 @@ export const generateCompoundShape = (width: number, height: number): GeneratedS
         return createFallbackShape(width, height);
     }
 
-    const outline = mergeShapes(shapes);
+    const mergedOutline = mergeShapes(shapes);
+    
+    // Ensure each point is a proper tuple
+    const outline: Point[] = mergedOutline.map(([x, y]) => [x, y]);
+    
     return {
         outline,
         spouts: selectRandomSpouts(outline)
@@ -129,7 +133,6 @@ export const generateCompoundShape = (width: number, height: number): GeneratedS
 };
 
 const createFallbackShape = (width: number, height: number): GeneratedShape => {
-    // Create an asymmetric compound shape
     const centerX = width / 2;
     const centerY = height / 2;
     const radius = Math.min(width, height) / 4;
@@ -143,7 +146,7 @@ const createFallbackShape = (width: number, height: number): GeneratedShape => {
         fallbackOutline.push([
             centerX + Math.cos(angle) * r * (1 + Math.random() * 0.3),
             centerY + Math.sin(angle) * r * (1 + Math.random() * 0.3)
-        ]);
+        ] as Point); // Explicitly cast as Point
     }
     
     return {
@@ -163,8 +166,10 @@ const selectRandomSpouts = (vertices: Point[]): Point[] => {
     
     for (let i = 0; i < numSpouts && topHalf.length > 0; i++) {
         const targetAngle = angleSegments * (i + 1);
-        const center = [vertices.reduce((sum, v) => sum + v[0], 0) / vertices.length,
-                       vertices.reduce((sum, v) => sum + v[1], 0) / vertices.length];
+        const center: Point = [
+            vertices.reduce((sum, v) => sum + v[0], 0) / vertices.length,
+            vertices.reduce((sum, v) => sum + v[1], 0) / vertices.length
+        ];
         
         // Find point closest to desired angle
         let bestPoint = topHalf[0];
