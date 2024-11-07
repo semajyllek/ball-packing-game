@@ -5,8 +5,7 @@ import { mergeShapes } from './ShapeMerger';
 // Constants
 // const MIN_SIZE = 60;
 // const MAX_SIZE = 200;
-const MIN_SHAPES = 3;
-const MAX_SHAPES = 5;
+const MIN_SHAPES = 10;
 
 const createRandomShape = (): Shape => {
     const shapeType = Math.floor(Math.random() * 4);
@@ -81,11 +80,8 @@ export const generateCompoundShape = (width: number, height: number): GeneratedS
     const firstShape = createRandomShape();
     firstShape.translate(width/2, height/2);
     shapes.push(firstShape);
-
-    // Add remaining shapes
-    const targetShapes = MIN_SHAPES + Math.floor(Math.random() * (MAX_SHAPES - MIN_SHAPES + 1));
     
-    while (shapes.length < targetShapes && attempts < maxAttempts) {
+    while (shapes.length < MIN_SHAPES && attempts < maxAttempts) {
         const newShape = createRandomShape();
         
         // Try to overlap with any existing shape
