@@ -28,11 +28,6 @@ interface BallSize {
   name: string;
 }
 
-interface Point {
-  x: number;
-  y: number;
-}
-
 // Constants
 const GAME_WIDTH = 600;
 const GAME_HEIGHT = 600;
