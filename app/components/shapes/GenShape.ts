@@ -3,9 +3,13 @@ import { Point } from './GeometryUtils';
 import { mergeShapes, isPointInShape } from './ShapeMerger';
 
 // Constants
-// const MIN_SIZE = 60;
-// const MAX_SIZE = 200;
-const MIN_SHAPES = 10;
+const MIN_SIZE = 60;
+const MAX_SIZE = 200;
+const MIN_SHAPES = 3;
+
+const randomInRange = (min: number, max: number): number => {
+    return min + Math.random() * (max - min);
+};
 
 const createRandomShape = (): Shape => {
     const shapeType = Math.floor(Math.random() * 4);
@@ -13,18 +17,18 @@ const createRandomShape = (): Shape => {
     const y = 0;
     
     switch (shapeType) {
-        case 0: // Rectangle - no rotation needed!
-            const width = 100 + Math.random() * 100;  // 100-200
-            const height = 100 + Math.random() * 100; // 100-200
+        case 0: // Rectangle
+            const width = randomInRange(MIN_SIZE, MAX_SIZE);
+            const height = randomInRange(MIN_SIZE, MAX_SIZE);
             return new Rectangle(x, y, width, height);
         case 1:
-            const radius = 40 + Math.random() * 40;
+            const radius = randomInRange(MIN_SIZE/2, MAX_SIZE/2); // Divide by 2 since diameter is the effective size
             return new Circle(x, y, radius, 16);
         case 2:
-            const size = 80 + Math.random() * 80;
+            const size = randomInRange(MIN_SIZE, MAX_SIZE);
             return new Triangle(x, y, size);
         default:
-            const starRadius = 40 + Math.random() * 40;
+            const starRadius = randomInRange(MIN_SIZE/2, MAX_SIZE/2);
             const points = 5;
             return new Star(x, y, starRadius, points);
     }
@@ -35,8 +39,8 @@ const findOverlappingPosition = (newShape: Shape, existingShape: Shape): boolean
     const centerX = (existingBounds.maxX + existingBounds.minX) / 2;
     const centerY = (existingBounds.maxY + existingBounds.minY) / 2;
     
-    // Try positions with fixed offsets for more predictable overlap
-    const offsets = [-50, 0, 50];
+    // Try offsets based on MIN_SIZE for meaningful overlap
+    const offsets = [-MIN_SIZE/2, 0, MIN_SIZE/2];
     
     for (const offsetX of offsets) {
         for (const offsetY of offsets) {
