@@ -5,6 +5,15 @@ import { Point } from './GeometryUtils';
 const MIN_SIZE = 60;
 const MAX_SIZE = 200;
 const MIN_SHAPES = 3;
+const MAX_SHAPES = 5;
+
+// Helper function to validate if a number[] is a valid Point
+const asPoint = (arr: number[]): Point => {
+    if (arr.length !== 2) {
+        throw new Error('Invalid point coordinates');
+    }
+    return [arr[0], arr[1]];
+};
 
 const createRandomShape = (): Shape => {
     const shapeType = Math.floor(Math.random() * 4);
@@ -31,7 +40,7 @@ const createRandomShape = (): Shape => {
 };
 
 const isPointInShape = (point: Point, shape: Shape): boolean => {
-    const vertices = shape.getVertices();
+    const vertices = shape.getVertices().map(asPoint);
     let inside = false;
     
     for (let i = 0, j = vertices.length - 1; i < vertices.length; j = i++) {
@@ -63,7 +72,7 @@ const findOverlappingPosition = (newShape: Shape, existingShape: Shape): boolean
         newShape.translate(x, y);
         
         // Check if shapes overlap
-        const newVertices = newShape.getVertices();
+        const newVertices = newShape.getVertices().map(asPoint);
         let hasOverlap = false;
         let allInside = true;
         
@@ -90,7 +99,7 @@ const findOverlappingPosition = (newShape: Shape, existingShape: Shape): boolean
 
 const mergeShapes = (shapes: Shape[]): Point[] => {
     // Get all vertices from all shapes
-    const allVertices = shapes.flatMap(shape => shape.getVertices()) as Point[];
+    const allVertices = shapes.flatMap(shape => shape.getVertices().map(asPoint));
     
     // Remove vertices that are inside any other shape
     const outerVertices = allVertices.filter(vertex => {
