@@ -66,9 +66,6 @@ const getRandomBallSize = (): BallSize => {
 const generateRandomColor = (): string => 
   `hsl(${Math.random() * 360}, 70%, 50%)`;
 
-const calculateDistance = (p1: Point, p2: Point): number => 
-  Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
-
 // Component Props Interfaces
 interface GameHeaderProps {
   fillPercentage: number;
