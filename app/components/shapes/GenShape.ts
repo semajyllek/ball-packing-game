@@ -3,7 +3,6 @@ import { Shape, Rectangle, Circle, Triangle, Star } from './ShapeClasses';
 import { mergeShapes } from './ShapeMerger';
 
 // Constants
-const MAX_OBJECTS = 10;
 const MIN_SIZE = 30;
 const MAX_SIZE = 80;
 
