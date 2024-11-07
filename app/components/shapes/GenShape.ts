@@ -37,7 +37,7 @@ const placeFirstShape = (shape: Shape, width: number, height: number): void => {
     const margin = MAX_SIZE;
     // Use upper portion of screen to ensure room for falling balls
     const x = margin + Math.random() * (width - 2 * margin);
-    const y = margin + Math.random() * (height/3); // Only use top third of screen
+    const y = margin + Math.random() * (height/2);
     shape.translate(x, y);
 };
 
@@ -51,9 +51,9 @@ const placeOverlappingShape = (newShape: Shape, existingShape: Shape, width: num
         const x = existingBounds.minX - placementMargin + Math.random() * (existingBounds.maxX - existingBounds.minX + 2 * placementMargin);
         // Keep Y placement higher up
         const y = Math.min(
-            existingBounds.minY - placementMargin + Math.random() * (existingBounds.maxY - existingBounds.minY + 2 * placementMargin),
-            height * 0.6 // Don't go below 60% of screen height
-        );
+			existingBounds.minY - placementMargin + Math.random() * (existingBounds.maxY - existingBounds.minY + 2 * placementMargin),
+			height * 0.8 // Allow more vertical space
+		);
         
         newShape.translate(x, y);
         const newBounds = newShape.getBounds();
