@@ -374,21 +374,21 @@ const BallPackingGame: React.FC = () => {
       };
       setBalls(prev => [...prev, newBall]);
     }
-  }, [gameWon, spouts, selectedVertex, balls.length]);
-
+  }, [gameWon, spouts, selectedVertex, balls.length, setBalls]);
+  
   const handleVertexClick = useCallback((index: number, e: React.MouseEvent) => {
     e.stopPropagation();
     setSelectedVertex(index);
-  }, []);
-
+  }, [setSelectedVertex]);
+  
   const resetGame = useCallback(() => {
     setBalls([]);
     setGameWon(false);
     setFillPercentage(0);
     generateShape();
-  }, [generateShape]);
-
-  // Animation Effect
+  }, [generateShape, setBalls, setGameWon, setFillPercentage]);
+  
+  // Fix the animation effect with missing dependencies
   useEffect(() => {
     if (balls.length > 0) {
       const animate = () => {
@@ -396,21 +396,30 @@ const BallPackingGame: React.FC = () => {
         
         const percentage = calculateFillPercentage();
         setFillPercentage(percentage);
-
+  
         if (percentage >= WIN_PERCENTAGE && !gameWon) {
           setGameWon(true);
           return;
         }
-
+  
         requestRef.current = requestAnimationFrame(animate);
       };
-
+  
       requestRef.current = requestAnimationFrame(animate);
       return () => {
         if (requestRef.current) cancelAnimationFrame(requestRef.current);
       };
     }
-  }, [balls.length, gameWon, updateBallPhysics, calculateFillPercentage]);
+  }, [
+    balls.length, 
+    gameWon, 
+    updateBallPhysics, 
+    calculateFillPercentage, 
+    setBalls, 
+    setFillPercentage, 
+    setGameWon,
+    requestRef
+  ]);
 
   // Initial Setup
   useEffect(() => {
@@ -422,7 +431,7 @@ const BallPackingGame: React.FC = () => {
 
 
 
-  
+
   return (
     <div className="w-full max-w-4xl mx-auto p-4">
       <div className="bg-slate-100 rounded-lg p-4">
@@ -452,3 +461,5 @@ const BallPackingGame: React.FC = () => {
     </div>
   );
 };
+
+export default BallPackingGame;
