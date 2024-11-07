@@ -32,10 +32,13 @@ const BallPackingGame = () => {
   const requestRef = useRef<number>();
   const containerRef = useRef<HTMLDivElement>(null);
 
+
+
+  
   const generateShape = () => {
     // Define canvas dimensions
-    const width = 400;
-    const height = 400;
+    const width = 600;
+    const height = 600;
     
     try {
       const shape = generateCompoundShape(width, height);
