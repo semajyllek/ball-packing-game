@@ -4,8 +4,7 @@ import { Point } from './GeometryUtils';
 // Constants
 const MIN_SIZE = 60;
 const MAX_SIZE = 200;
-const MIN_SHAPES = 3;
-const MAX_SHAPES = 10;
+const MIN_SHAPES = 6;
 
 // Helper function to validate if a number[] is a valid Point
 const asPoint = (arr: number[]): Point => {
@@ -166,13 +165,8 @@ export const generateCompoundShape = (width: number, height: number): GeneratedS
     firstShape.translate(width/2, height/2);
     shapes.push(firstShape);
 
-	// random number between MIN_SHAPES and MAX_SHAPES
-	const numShapes = MIN_SHAPES + Math.floor(Math.random() * (MAX_SHAPES - MIN_SHAPES));
-
-
-
     // Add remaining shapes
-    while (shapes.length < numShapes && attempts < maxAttempts) {
+    while (shapes.length < MIN_SHAPES && attempts < maxAttempts) {
         const newShape = createRandomShape();
         
         // Try to overlap with any existing shape
