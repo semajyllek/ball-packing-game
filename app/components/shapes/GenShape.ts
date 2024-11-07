@@ -34,45 +34,51 @@ const createRandomShape = (): Shape => {
 };
 
 const placeFirstShape = (shape: Shape, width: number, height: number): void => {
-    const margin = MAX_SIZE / 3; // Room for other shapes to overlap
+    const margin = MAX_SIZE;
+    // Use upper portion of screen to ensure room for falling balls
     const x = margin + Math.random() * (width - 2 * margin);
-    const y = height / 3 + Math.random() * (height/3); // Place in middle third of screen
+    const y = margin + Math.random() * (height/3); // Only use top third of screen
     shape.translate(x, y);
 };
 
 const placeOverlappingShape = (newShape: Shape, existingShape: Shape, width: number, height: number): boolean => {
     const existingBounds = existingShape.getBounds();
-    const margin = MAX_SIZE / 3;
-    const minOverlap = MIN_SIZE / 3; // Significant overlap
+    const margin = MAX_SIZE;
+    const minOverlap = MIN_SIZE / 3;
 
     for (let attempt = 0; attempt < 50; attempt++) {
-        // Calculate placement area relative to existing shape
         const placementMargin = MAX_SIZE / 2;
         const x = existingBounds.minX - placementMargin + Math.random() * (existingBounds.maxX - existingBounds.minX + 2 * placementMargin);
-        const y = existingBounds.minY - placementMargin + Math.random() * (existingBounds.maxY - existingBounds.minY + 2 * placementMargin);
+        // Keep Y placement higher up
+        const y = Math.min(
+            existingBounds.minY - placementMargin + Math.random() * (existingBounds.maxY - existingBounds.minY + 2 * placementMargin),
+            height * 0.6 // Don't go below 60% of screen height
+        );
         
         newShape.translate(x, y);
         const newBounds = newShape.getBounds();
         
-        // Keep shapes within game bounds
-        if (newBounds.minX < margin || newBounds.maxX > width - margin || 
-            newBounds.minY < margin || newBounds.maxY > height - margin) {
-            newShape.translate(-x, -y); // Reset position
+        // Stricter bounds checking
+        if (newBounds.minX < margin || 
+            newBounds.maxX > width - margin || 
+            newBounds.minY < margin || 
+            newBounds.maxY > height - margin ||
+            newBounds.maxY > height * 0.75) { // Additional height restriction
+            newShape.translate(-x, -y);
             continue;
         }
         
-        // Calculate overlap
+        // Rest of overlap checking remains the same
         const overlapX = Math.min(newBounds.maxX, existingBounds.maxX) - 
                         Math.max(newBounds.minX, existingBounds.minX);
         const overlapY = Math.min(newBounds.maxY, existingBounds.maxY) - 
                         Math.max(newBounds.minY, existingBounds.minY);
 
-        // Accept position if overlap is good
         if (overlapX > minOverlap && overlapY > minOverlap) {
             return true;
         }
         
-        newShape.translate(-x, -y); // Reset position
+        newShape.translate(-x, -y);
     }
     
     return false;
