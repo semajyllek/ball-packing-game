@@ -5,7 +5,6 @@ import { Point } from './GeometryUtils';
 const MIN_SIZE = 60;
 const MAX_SIZE = 200;
 const MIN_SHAPES = 3;
-const MAX_SHAPES = 5;
 
 // Helper function to validate if a number[] is a valid Point
 const asPoint = (arr: number[]): Point => {
