@@ -3,8 +3,8 @@ import { Shape, Rectangle, Circle, Triangle, Star } from './ShapeClasses';
 import { mergeShapes } from './ShapeMerger';
 
 // Constants
-const MIN_SIZE = 100; 
-const MAX_SIZE = 400; 
+const MIN_SIZE = 40;   // 10% of game area
+const MAX_SIZE = 100;  // 25% of game area
 const MIN_SHAPES = 3;
 const MAX_SHAPES = 8;
 
@@ -33,42 +33,41 @@ const createRandomShape = (): Shape => {
     }
 };
 
-
 const placeFirstShape = (shape: Shape, width: number, height: number): void => {
-    const margin = MAX_SIZE / 2; // Reduced margin to give more placement space
+    const margin = MAX_SIZE / 3; // Room for other shapes to overlap
     const x = margin + Math.random() * (width - 2 * margin);
-    const y = margin + Math.random() * (height - 2 * margin);
+    const y = height / 3 + Math.random() * (height/3); // Place in middle third of screen
     shape.translate(x, y);
 };
 
 const placeOverlappingShape = (newShape: Shape, existingShape: Shape, width: number, height: number): boolean => {
     const existingBounds = existingShape.getBounds();
-    const margin = MAX_SIZE / 2; // Reduced margin
-    const minOverlap = MIN_SIZE / 4; // Minimum overlap required
+    const margin = MAX_SIZE / 3;
+    const minOverlap = MIN_SIZE / 3; // Significant overlap
 
     for (let attempt = 0; attempt < 50; attempt++) {
-        // Increase the placement area around the existing shape
-        const placementMargin = MAX_SIZE;
+        // Calculate placement area relative to existing shape
+        const placementMargin = MAX_SIZE / 2;
         const x = existingBounds.minX - placementMargin + Math.random() * (existingBounds.maxX - existingBounds.minX + 2 * placementMargin);
         const y = existingBounds.minY - placementMargin + Math.random() * (existingBounds.maxY - existingBounds.minY + 2 * placementMargin);
         
         newShape.translate(x, y);
         const newBounds = newShape.getBounds();
         
-        // Check if the new shape is within game bounds with smaller margin
+        // Keep shapes within game bounds
         if (newBounds.minX < margin || newBounds.maxX > width - margin || 
             newBounds.minY < margin || newBounds.maxY > height - margin) {
             newShape.translate(-x, -y); // Reset position
             continue;
         }
         
-        // Calculate overlap amount
+        // Calculate overlap
         const overlapX = Math.min(newBounds.maxX, existingBounds.maxX) - 
                         Math.max(newBounds.minX, existingBounds.minX);
         const overlapY = Math.min(newBounds.maxY, existingBounds.maxY) - 
                         Math.max(newBounds.minY, existingBounds.minY);
 
-        // Check for meaningful overlap
+        // Accept position if overlap is good
         if (overlapX > minOverlap && overlapY > minOverlap) {
             return true;
         }

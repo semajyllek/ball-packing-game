@@ -319,7 +319,7 @@ const BallPackingGame = () => {
           className="relative bg-white rounded-lg overflow-hidden cursor-pointer"
           style={{ height: '400px' }}
         >
-          <svg width="400" height="400">
+          <svg width="600" height="600">
             {triangles.map((triangle, index) => (
               <path
                 key={index}
