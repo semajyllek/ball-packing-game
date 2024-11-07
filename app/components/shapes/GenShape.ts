@@ -102,27 +102,29 @@ const mergeShapes = (shapes: Shape[]): Point[] => {
 	});
 };
   
-const selectSpouts = (vertices: Point[]): Point[] => {
-	const numSpouts = 2 + Math.floor(Math.random() * 2);
+
+
+const selectRandomSpouts = (vertices: Point[]): Point[] => {
+	const numSpouts = 2 + Math.floor(Math.random() * 2); // 2-3 spouts
 	const sortedByHeight = [...vertices].sort((a, b) => a[1] - b[1]);
-	const topThird = sortedByHeight.slice(0, Math.floor(vertices.length / 3));
+	const topHalf = sortedByHeight.slice(0, Math.floor(vertices.length / 2));
 	
 	const spouts: Point[] = [];
-	while (spouts.length < numSpouts && topThird.length > 0) {
-		const index = Math.floor(Math.random() * topThird.length);
-		spouts.push(topThird[index]);
-		topThird.splice(index, 1);
+	while (spouts.length < numSpouts && topHalf.length > 0) {
+	  const index = Math.floor(Math.random() * topHalf.length);
+	  spouts.push(topHalf[index]);
+	  topHalf.splice(index, 1);
 	}
 	
 	return spouts;
-};
-	
+  };
   
+  interface GeneratedShape {
+	outline: Point[];  // Complete shape outline for rendering
+	spouts: Point[];   // Just 2-3 vertices for click handling
+  }
   
-
-
-// This is the internal function that generates our shape data
-const generateShape = (width: number, height: number): GeneratedShape => {
+  export const generateCompoundShape = (width: number, height: number): GeneratedShape => {
 	const numShapes = 2 + Math.floor(Math.random() * (MAX_OBJECTS - 1));
 	const shapes: Shape[] = [];
 	
@@ -133,44 +135,34 @@ const generateShape = (width: number, height: number): GeneratedShape => {
 	
 	// Add remaining shapes with overlap
 	for (let i = 1; i < numShapes; i++) {
-		const newShape = createRandomShape();
-		const existingShapeIndex = Math.floor(Math.random() * shapes.length);
-	
-		if (placeOverlappingShape(newShape, shapes[existingShapeIndex], width, height)) {
-			shapes.push(newShape);
-		}
+	  const newShape = createRandomShape();
+	  const existingShapeIndex = Math.floor(Math.random() * shapes.length);
+	  
+	  if (placeOverlappingShape(newShape, shapes[existingShapeIndex], width, height)) {
+		shapes.push(newShape);
+	  }
 	}
-
+	
 	// Get outline vertices and select spouts
 	const outline = mergeShapes(shapes);
-	const spouts = selectSpouts(outline);
 	
-	return { outline, spouts };
-};
-  
-// This is the exported function that maintains compatibility with the existing game
-export const generateCompoundShape = (width: number, height: number): number[][] => {
-	const { outline, spouts } = generateShape(width, height);
-
-	// Validate shape
-	if (!outline || outline.length < 3) {
-		// Return a simple triangle as fallback
-		return [
+	if (outline.length < 3) {
+	  // Fallback to a simple triangle if shape generation failed
+	  const fallbackOutline: Point[] = [
 		[width/2, height/4],
 		[width/4, height*3/4],
 		[width*3/4, height*3/4]
-		];
+	  ];
+	  return {
+		outline: fallbackOutline,
+		spouts: selectRandomSpouts(fallbackOutline)
+	  };
 	}
-
-	// Mark spouts by slightly offsetting them up
-	return outline.map(vertex => {
-		const isSpout = spouts.some(
-			spout => spout[0] === vertex[0] && spout[1] === vertex[1]
-		);
-		return isSpout ? [vertex[0], vertex[1] - 2] : vertex;
-	});
-};
+	
+	return {
+	  outline,
+	  spouts: selectRandomSpouts(outline)
+	};
+  };
   
-// Export the interface and internal function for future use
-export type { GeneratedShape };
-export { generateShape };
+  
