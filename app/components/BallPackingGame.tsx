@@ -18,7 +18,7 @@ interface Ball {
   color: string;
 }
 
-const [spouts, setSpouts] = useState<number[][]>([]);
+
 
 
 const BallPackingGame = () => {
@@ -27,6 +27,7 @@ const BallPackingGame = () => {
   const [gameWon, setGameWon] = useState(false);
   const [selectedVertex, setSelectedVertex] = useState(0);
   const [vertices, setVertices] = useState<number[][]>([]);
+  const [spouts, setSpouts] = useState<number[][]>([]);
   const [triangles, setTriangles] = useState<number[][][]>([]);
   const requestRef = useRef<number>();
   const containerRef = useRef<HTMLDivElement>(null);
