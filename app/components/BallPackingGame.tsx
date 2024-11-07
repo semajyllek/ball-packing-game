@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { RotateCcw } from 'lucide-react';
 import { generateCompoundShape } from './shapes/GenShape';
@@ -11,6 +13,7 @@ interface Ball {
   velX: number;
   velY: number;
   color: string;
+  type?: string;
 }
 
 const BallPackingGame = () => {
@@ -22,80 +25,11 @@ const BallPackingGame = () => {
   const [spouts, setSpouts] = useState<number[][]>([]);
   const [triangles, setTriangles] = useState<number[][][]>([]);
   const requestRef = useRef<number>();
-  const containerRef = useRef<HTMLDivElement>(null);
 
   // Define consistent dimensions
   const GAME_WIDTH = 600;
-  const GAME_HEIGHT = 400; // Match container height
-  const MARGIN = 40; // Smaller margin to use more space
-
-  const generateShape = () => {
-    try {
-      // Generate shape with adjusted height
-      const shape = generateCompoundShape(GAME_WIDTH, GAME_HEIGHT);
-      const newVertices = shape.outline;
-      const newSpouts = shape.spouts;
-      
-      // Scale vertices to fit within margins
-      const scaledVertices = newVertices.map(v => [
-        Math.min(Math.max(v[0], MARGIN), GAME_WIDTH - MARGIN),
-        Math.min(Math.max(v[1], MARGIN), GAME_HEIGHT - MARGIN)
-      ]);
-      
-      // Scale spouts similarly
-      const scaledSpouts = newSpouts.map(v => [
-        Math.min(Math.max(v[0], MARGIN), GAME_WIDTH - MARGIN),
-        Math.min(Math.max(v[1], MARGIN), GAME_HEIGHT - MARGIN)
-      ]);
-
-      const newTriangles = triangulate(scaledVertices);
-
-      setVertices(scaledVertices);
-      setTriangles(newTriangles);
-      setSpouts(scaledSpouts);
-      setSelectedVertex(0);
-
-    } catch (error) {
-      console.log('Error generating shape:', error);
-      // Fallback shape with proper scaling
-      const fallbackVertices = [
-        [GAME_WIDTH/2, MARGIN * 2], // top
-        [GAME_WIDTH * 0.75, GAME_HEIGHT * 0.3], // top right
-        [GAME_WIDTH * 0.75, GAME_HEIGHT * 0.7], // bottom right
-        [GAME_WIDTH/2, GAME_HEIGHT - MARGIN * 2], // bottom
-        [GAME_WIDTH * 0.25, GAME_HEIGHT * 0.7], // bottom left
-        [GAME_WIDTH * 0.25, GAME_HEIGHT * 0.3], // top left
-      ];
-
-      const fallbackSpouts = [
-        [GAME_WIDTH/2, MARGIN * 2], // top
-        [GAME_WIDTH * 0.75, GAME_HEIGHT * 0.3], // top right
-      ];
-
-      const centerPoint = [GAME_WIDTH/2, GAME_HEIGHT/2];
-      const fallbackTriangles = fallbackVertices.map((vertex, i) => {
-        const nextVertex = fallbackVertices[(i + 1) % fallbackVertices.length];
-        return [centerPoint, vertex, nextVertex];
-      });
-
-      setVertices(fallbackVertices);
-      setTriangles(fallbackTriangles);
-      setSpouts(fallbackSpouts);
-      setSelectedVertex(0);
-    }
-  };
-
-  // Call generateShape on first render and when resetting
-  useEffect(() => {
-    generateShape();
-  }, []);
-
-  const resetGame = () => {
-    setBalls([]);
-    setGameWon(false);
-    setFillPercentage(0);
-    generateShape(); // Generate new shape on reset
-  };
+  const GAME_HEIGHT = 600; // Keep same height as width for proper shape rendering
+  const VISIBLE_HEIGHT = 400; // Actual visible height in container
 
   // Define ball sizes and their distribution
   const ballSizes = [
@@ -118,27 +52,58 @@ const BallPackingGame = () => {
     return ballSizes[ballSizes.length - 1];
   };
 
-  const handleClick = () => {
-    if (!gameWon && spouts.length > 0) {
-      const ballType = getRandomBallSize();
-      const dropPoint = spouts[selectedVertex];  // Use selected spout instead of vertex
-      const newBall = {
-        id: balls.length,
-        x: dropPoint[0],
-        y: dropPoint[1],
-        velX: 0,
-        velY: 0,
-        radius: ballType.size,
-        color: `hsl(${Math.random() * 360}, 70%, 50%)`,
-        type: ballType.name
-      };
-      setBalls(prev => [...prev, newBall]);
-    }
-  };
+  const generateShape = () => {
+    try {
+      // Generate shape using GAME_HEIGHT for calculations
+      const shape = generateCompoundShape(GAME_WIDTH, GAME_HEIGHT);
+      
+      // Scale Y coordinates to fit visible area
+      const scaleY = VISIBLE_HEIGHT / GAME_HEIGHT;
+      const scaledVertices = shape.outline.map(v => [
+        v[0],
+        v[1] * scaleY
+      ]);
+      
+      const scaledSpouts = shape.spouts.map(v => [
+        v[0],
+        v[1] * scaleY
+      ]);
 
-  const handleVertexClick = (index: number, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setSelectedVertex(index);
+      const newTriangles = triangulate(scaledVertices);
+
+      setVertices(scaledVertices);
+      setTriangles(newTriangles);
+      setSpouts(scaledSpouts);
+      setSelectedVertex(0);
+
+    } catch (error) {
+      console.log('Error generating shape:', error);
+      // Fallback shape scaled to visible height
+      const fallbackVertices = [
+        [GAME_WIDTH/2, VISIBLE_HEIGHT/4],
+        [GAME_WIDTH * 0.75, VISIBLE_HEIGHT/2],
+        [GAME_WIDTH * 0.75, VISIBLE_HEIGHT * 0.75],
+        [GAME_WIDTH/2, VISIBLE_HEIGHT * 0.85],
+        [GAME_WIDTH * 0.25, VISIBLE_HEIGHT * 0.75],
+        [GAME_WIDTH * 0.25, VISIBLE_HEIGHT/2]
+      ];
+
+      const fallbackSpouts = [
+        [GAME_WIDTH/2, VISIBLE_HEIGHT/4],
+        [GAME_WIDTH * 0.75, VISIBLE_HEIGHT/2]
+      ];
+
+      const centerPoint = [GAME_WIDTH/2, VISIBLE_HEIGHT/2];
+      const fallbackTriangles = fallbackVertices.map((vertex, i) => {
+        const nextVertex = fallbackVertices[(i + 1) % fallbackVertices.length];
+        return [centerPoint, vertex, nextVertex];
+      });
+
+      setVertices(fallbackVertices);
+      setTriangles(fallbackTriangles);
+      setSpouts(fallbackSpouts);
+      setSelectedVertex(0);
+    }
   };
 
   const isPointInPolygon = useCallback((point: number[]) => {
@@ -153,8 +118,6 @@ const BallPackingGame = () => {
     }
     return inside;
   }, [vertices]);
-
-  
 
   const findNearestEdgePoint = useCallback((point: number[]) => {
     const nearestPoint = [...point];
@@ -177,9 +140,35 @@ const BallPackingGame = () => {
     return { point: nearestPoint, bounced: moved };
   }, [vertices, isPointInPolygon]);
 
+  const handleClick = () => {
+    if (!gameWon && spouts.length > 0) {
+      const ballType = getRandomBallSize();
+      const dropPoint = spouts[selectedVertex];
+      const newBall = {
+        id: balls.length,
+        x: dropPoint[0],
+        y: dropPoint[1],
+        velX: 0,
+        velY: 0,
+        radius: ballType.size,
+        color: `hsl(${Math.random() * 360}, 70%, 50%)`,
+        type: ballType.name
+      };
+      setBalls(prev => [...prev, newBall]);
+    }
+  };
+
+  const handleVertexClick = (index: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedVertex(index);
+  };
+
+  useEffect(() => {
+    generateShape();
+  }, []);
+
   const bounceFactor = 0.5;
 
-  // Update the fill percentage calculation to account for different ball sizes
   useEffect(() => {
     if (balls.length > 0) {
       const animate = () => {
@@ -188,7 +177,7 @@ const BallPackingGame = () => {
             let newX = ball.x + ball.velX;
             let newY = ball.y + ball.velY;
             let newVelX = ball.velX;
-            let newVelY = ball.velY + 0.5;
+            let newVelY = ball.velY + 0.5; // Gravity
 
             const { point, bounced } = findNearestEdgePoint([newX, newY]);
             newX = point[0];
@@ -199,6 +188,7 @@ const BallPackingGame = () => {
               newVelY *= -bounceFactor;
             }
 
+            // Ball collision
             prevBalls.forEach(otherBall => {
               if (ball.id !== otherBall.id) {
                 const dx = newX - otherBall.x;
@@ -221,6 +211,7 @@ const BallPackingGame = () => {
               }
             });
 
+            // Damping
             newVelX *= 0.99;
             newVelY *= 0.99;
 
@@ -234,7 +225,7 @@ const BallPackingGame = () => {
           });
         });
 
-        // Calculate fill percentage accounting for different ball sizes
+        // Calculate fill percentage
         const totalArea = triangles.reduce((acc, triangle) => {
           const [a, b, c] = triangle;
           const area = Math.abs((b[0] - a[0]) * (c[1] - a[1]) - (c[0] - a[0]) * (b[1] - a[1])) / 2;
@@ -261,10 +252,15 @@ const BallPackingGame = () => {
         if (requestRef.current) cancelAnimationFrame(requestRef.current);
       };
     }
-  }, [balls.length, gameWon, findNearestEdgePoint, triangles, balls, bounceFactor]);
+  }, [balls.length, gameWon, findNearestEdgePoint, triangles]);
 
-  
-  
+  const resetGame = () => {
+    setBalls([]);
+    setGameWon(false);
+    setFillPercentage(0);
+    generateShape();
+  };
+
   return (
     <div className="w-full max-w-4xl mx-auto p-4">
       <div className="bg-slate-100 rounded-lg p-4">
@@ -281,12 +277,11 @@ const BallPackingGame = () => {
         </div>
         
         <div
-          ref={containerRef}
           onClick={handleClick}
           className="relative bg-white rounded-lg overflow-hidden cursor-pointer"
-          style={{ height: `${GAME_HEIGHT}px`, width: `${GAME_WIDTH}px` }}
+          style={{ height: `${VISIBLE_HEIGHT}px` }}
         >
-          <svg width={GAME_WIDTH} height={GAME_HEIGHT}>
+          <svg width={GAME_WIDTH} height={VISIBLE_HEIGHT} viewBox={`0 0 ${GAME_WIDTH} ${VISIBLE_HEIGHT}`}>
             {triangles.map((triangle, index) => (
               <path
                 key={index}
@@ -334,5 +329,3 @@ const BallPackingGame = () => {
 };
 
 export default BallPackingGame;
-
-
