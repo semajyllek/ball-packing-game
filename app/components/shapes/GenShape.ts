@@ -4,7 +4,7 @@ const MAX_OBJECTS = 10;
 const MIN_SIZE = 30;
 const MAX_SIZE = 80;
 
-const createRandomShape = (gameWidth: number, gameHeight: number): Shape => {
+const createRandomShape = (): Shape => {
   const shapeType = Math.floor(Math.random() * 4);
   const x = 0;  // Will be positioned later
   const y = 0;
@@ -91,7 +91,7 @@ export const generateCompoundShape = (width: number, height: number): number[][]
   
   // Generate and place shapes
   for (let i = 0; i < numShapes; i++) {
-    const shape = createRandomShape(width, height);
+    const shape = createRandomShape();
     findValidPosition(shape, shapes, width, height, i === 0);
     shapes.push(shape);
   }
