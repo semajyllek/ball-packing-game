@@ -16,13 +16,15 @@ const createRandomShape = (): Shape => {
       return new Rectangle(x, y, width, height);
     case 1:
       const radius = (MIN_SIZE + Math.random() * (MAX_SIZE - MIN_SIZE)) / 2;
-      return new Circle(x, y, radius);
+      // Use far fewer segments for circle
+      return new Circle(x, y, radius, 6);
     case 2:
       const size = MIN_SIZE + Math.random() * (MAX_SIZE - MIN_SIZE);
       return new Triangle(x, y, size);
     default:
       const starRadius = (MIN_SIZE + Math.random() * (MAX_SIZE - MIN_SIZE)) / 2;
-      return new Star(x, y, starRadius);
+      // Use fewer points for star
+      return new Star(x, y, starRadius, 3);
   }
 };
 
@@ -46,12 +48,12 @@ const findValidPosition = (
                     bounds.minY >= 0 && bounds.maxY <= gameHeight;
     
     if (!inBounds) {
-      shape.translate(-shape.x, -shape.y);  // Reset position
+      shape.translate(-shape.x, -shape.y);
       attempts++;
       continue;
     }
     
-    if (isFirst) return;  // First shape only needs to be in bounds
+    if (isFirst) return;
     
     // Check for overlap with at least one existing shape
     const hasOverlap = existingShapes.some(existing => {
@@ -64,25 +66,29 @@ const findValidPosition = (
     
     if (hasOverlap) return;
     
-    shape.translate(-shape.x, -shape.y);  // Reset and try again
+    shape.translate(-shape.x, -shape.y);
     attempts++;
   }
   
-  // If we couldn't find a valid position, place it near the center
   shape.translate(gameWidth/2, gameHeight/2);
 };
 
-const mergeShapes = (shapes: Shape[]): Point[] => {
-  const allPoints = new Map<string, Point>();
+const selectThreeVertices = (points: Point[]): Point[] => {
+  // Prefer highest points for better gameplay
+  const sortedPoints = [...points].sort((a, b) => a[1] - b[1]);
+  const numPoints = Math.min(3, sortedPoints.length);
   
-  shapes.forEach(shape => {
-    shape.vertices.forEach(vertex => {
-      const key = `${vertex[0].toFixed(1)},${vertex[1].toFixed(1)}`;
-      allPoints.set(key, vertex);
-    });
-  });
+  // Take 2-3 points from the top half
+  const topHalf = sortedPoints.slice(0, Math.ceil(sortedPoints.length / 2));
+  const selectedPoints: Point[] = [];
   
-  return Array.from(allPoints.values());
+  while (selectedPoints.length < numPoints && topHalf.length > 0) {
+    const randomIndex = Math.floor(Math.random() * topHalf.length);
+    selectedPoints.push(topHalf[randomIndex]);
+    topHalf.splice(randomIndex, 1);
+  }
+  
+  return selectedPoints;
 };
 
 export const generateCompoundShape = (width: number, height: number): number[][] => {
@@ -96,6 +102,15 @@ export const generateCompoundShape = (width: number, height: number): number[][]
     shapes.push(shape);
   }
   
-  // Merge all shapes into single vertex list
-  return mergeShapes(shapes);
+  // Collect all unique vertices
+  const uniquePoints = new Map<string, Point>();
+  shapes.forEach(shape => {
+    shape.vertices.forEach(vertex => {
+      const key = `${vertex[0].toFixed(1)},${vertex[1].toFixed(1)}`;
+      uniquePoints.set(key, vertex);
+    });
+  });
+  
+  // Select only three vertices for spouts
+  return selectThreeVertices(Array.from(uniquePoints.values()));
 };
