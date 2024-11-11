@@ -13,8 +13,9 @@ async function parseS3ListXML(text: string): Promise<string[]> {
   return keys.map(key => key.textContent || '');
 }
 
-// Using your bucket URL from the Python code
-const BUCKET_URL = 'https://flower-filler-bucket.s3.us-west-2.amazonaws.com';
+const S3_REGION = 'us-west-2';
+const BUCKET_NAME = 'flower-filler-bucket';
+const BASE_URL = `https://s3.${S3_REGION}.amazonaws.com`;
 
 export function useFlowerDataset() {
   const [flowerPairs, setFlowerPairs] = useState<FlowerPair[]>([]);
@@ -25,13 +26,16 @@ export function useFlowerDataset() {
     async function loadFlowerDataset() {
       try {
         setIsLoading(true);
-        console.log('Fetching from:', `${BUCKET_URL}?list-type=2&prefix=flower_dataset/`);
+        // Changed URL format to match S3 list objects v2 API
+        const listUrl = `${BASE_URL}/${BUCKET_NAME}?list-type=2&prefix=flower_dataset/&delimiter=/`;
+        console.log('Fetching from:', listUrl);
         
-        const response = await fetch(
-          `${BUCKET_URL}?list-type=2&prefix=flower_dataset/`
-        );
+        const response = await fetch(listUrl);
 
         if (!response.ok) {
+          console.error('List response not OK:', response.status, response.statusText);
+          const text = await response.text();
+          console.log('Error response:', text);
           throw new Error(`Failed to list objects: ${response.statusText}`);
         }
 
@@ -59,8 +63,9 @@ export function useFlowerDataset() {
 
             if (originalPath) {
               pairs.push({
-                outlinePath: `${BUCKET_URL}/${outlinePath}`,
-                originalPath: `${BUCKET_URL}/${originalPath}`,
+                // Changed URL construction to use the proper S3 URL format
+                outlinePath: `${BASE_URL}/${BUCKET_NAME}/${outlinePath}`,
+                originalPath: `${BASE_URL}/${BUCKET_NAME}/${originalPath}`,
                 index
               });
             }
