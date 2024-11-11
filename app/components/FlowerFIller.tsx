@@ -11,7 +11,7 @@ import {
 } from './shapes/FlowerOutlineProcessor';
 
 // Types
-interface Ball {
+interface Droplet {
   id: number;  
   x: number;
   y: number;
@@ -27,7 +27,7 @@ interface GameShape {
   spouts: number[][];
 }
 
-interface BallSize {
+interface DropletSize {
   size: number;
   weight: number;
   name: string;
@@ -43,11 +43,11 @@ interface GameShapeProps extends GameShape {
   onSpoutClick: (index: number, e: React.MouseEvent) => void;
 }
 
-interface GameBallsProps {
-  balls: Ball[];
+interface GameDropletsProps {
+  Droplets: Droplet[];
 }
 
-interface BallPackingGameProps {
+interface FlowerFillerProps {
   outlineImage: ImageData;
 }
 
@@ -59,7 +59,7 @@ const DAMPING = 0.99;
 const WIN_PERCENTAGE = 90;
 const GRAVITY = 0.5;
 
-const BALL_SIZES: BallSize[] = [
+const Droplet_SIZES: DropletSize[] = [
   { size: 12, weight: 0.05, name: 'largest' },
   { size: 10, weight: 0.15, name: 'large' },
   { size: 8, weight: 0.35, name: 'medium' },
@@ -115,15 +115,15 @@ const GameShape: React.FC<GameShapeProps> = ({
   </>
 );
 
-const GameBalls: React.FC<GameBallsProps> = ({ balls }) => (
+const GameDroplets: React.FC<GameDropletsProps> = ({ Droplets }) => (
   <>
-    {balls.map(ball => (
+    {Droplets.map(Droplet => (
       <circle
-        key={ball.id}
-        cx={ball.x}
-        cy={ball.y}
-        r={ball.radius}
-        fill={ball.color}
+        key={Droplet.id}
+        cx={Droplet.x}
+        cy={Droplet.y}
+        r={Droplet.radius}
+        fill={Droplet.color}
       />
     ))}
   </>
@@ -203,11 +203,11 @@ const usePhysics = (vertices: Point[]) => {
     return { point: nearestPoint, bounced: moved };
   }, [vertices, isPointInPolygon]);
 
-  const updateBallPhysics = useCallback((ball: Ball, prevBalls: Ball[]): Ball => {
-    let newX = ball.x + ball.velX;
-    let newY = ball.y + ball.velY;
-    let newVelX = ball.velX;
-    let newVelY = ball.velY + GRAVITY;
+  const updateDropletPhysics = useCallback((Droplet: Droplet, prevDroplets: Droplet[]): Droplet => {
+    let newX = Droplet.x + Droplet.velX;
+    let newY = Droplet.y + Droplet.velY;
+    let newVelX = Droplet.velX;
+    let newVelY = Droplet.velY + GRAVITY;
 
     const { point, bounced } = findNearestEdgePoint([newX, newY]);
     newX = point[0];
@@ -218,31 +218,31 @@ const usePhysics = (vertices: Point[]) => {
       newVelY *= -BOUNCE_FACTOR;
     }
 
-    // Ball collision
-    prevBalls.forEach(otherBall => {
-      if (ball.id !== otherBall.id) {
-        const dx = newX - otherBall.x;
-        const dy = newY - otherBall.y;
+    // Droplet collision
+    prevDroplets.forEach(otherDroplet => {
+      if (Droplet.id !== otherDroplet.id) {
+        const dx = newX - otherDroplet.x;
+        const dy = newY - otherDroplet.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
-        const minDistance = ball.radius + otherBall.radius;
+        const minDistance = Droplet.radius + otherDroplet.radius;
         
         if (distance < minDistance) {
           const angle = Math.atan2(dy, dx);
-          newX = otherBall.x + Math.cos(angle) * minDistance;
-          newY = otherBall.y + Math.sin(angle) * minDistance;
+          newX = otherDroplet.x + Math.cos(angle) * minDistance;
+          newY = otherDroplet.y + Math.sin(angle) * minDistance;
           
           const tmpVelX = newVelX;
           const tmpVelY = newVelY;
-          newVelX = otherBall.velX * BOUNCE_FACTOR;
-          newVelY = otherBall.velY * BOUNCE_FACTOR;
-          otherBall.velX = tmpVelX * BOUNCE_FACTOR;
-          otherBall.velY = tmpVelY * BOUNCE_FACTOR;
+          newVelX = otherDroplet.velX * BOUNCE_FACTOR;
+          newVelY = otherDroplet.velY * BOUNCE_FACTOR;
+          otherDroplet.velX = tmpVelX * BOUNCE_FACTOR;
+          otherDroplet.velY = tmpVelY * BOUNCE_FACTOR;
         }
       }
     });
 
     return {
-      ...ball,
+      ...Droplet,
       x: newX,
       y: newY,
       velX: newVelX * DAMPING,
@@ -250,11 +250,11 @@ const usePhysics = (vertices: Point[]) => {
     };
   }, [findNearestEdgePoint]);
 
-  return { updateBallPhysics };
+  return { updateDropletPhysics };
 };
 
 const useGameState = (triangles: number[][][]) => {
-  const [balls, setBalls] = useState<Ball[]>([]);
+  const [Droplets, setDroplets] = useState<Droplet[]>([]);
   const [fillPercentage, setFillPercentage] = useState(0);
   const [gameWon, setGameWon] = useState(false);
   const [selectedVertex, setSelectedVertex] = useState(0);
@@ -267,16 +267,16 @@ const useGameState = (triangles: number[][][]) => {
       return acc + area;
     }, 0);
     
-    const ballArea = balls.reduce((acc, ball) => {
-      return acc + (Math.PI * ball.radius * ball.radius);
+    const DropletArea = Droplets.reduce((acc, Droplet) => {
+      return acc + (Math.PI * Droplet.radius * Droplet.radius);
     }, 0);
     
-    return Math.min((ballArea / totalArea) * 100, 100);
-  }, [triangles, balls]);
+    return Math.min((DropletArea / totalArea) * 100, 100);
+  }, [triangles, Droplets]);
 
   return {
-    balls,
-    setBalls,
+    Droplets,
+    setDroplets,
     fillPercentage,
     setFillPercentage,
     gameWon,
@@ -289,28 +289,28 @@ const useGameState = (triangles: number[][][]) => {
 };
 
 // Utility Functions
-const getRandomBallSize = (): BallSize => {
+const getRandomDropletSize = (): DropletSize => {
   const random = Math.random();
   let sum = 0;
-  for (const ball of BALL_SIZES) {
-    sum += ball.weight;
+  for (const Droplet of Droplet_SIZES) {
+    sum += Droplet.weight;
     if (random < sum) {
-      return ball;
+      return Droplet;
     }
   }
-  return BALL_SIZES[BALL_SIZES.length - 1];
+  return Droplet_SIZES[Droplet_SIZES.length - 1];
 };
 
 const generateRandomColor = (): string => 
   `hsl(${Math.random() * 360}, 70%, 50%)`;
 
 // Main Component
-const BallPackingGame: React.FC<BallPackingGameProps> = ({ outlineImage }) => {
+const FlowerFiller: React.FC<FlowerFillerProps> = ({ outlineImage }) => {
   const { vertices, spouts, triangles, generateShape } = useFlowerShape(outlineImage);
-  const { updateBallPhysics } = usePhysics(vertices);
+  const { updateDropletPhysics } = usePhysics(vertices);
   const {
-    balls,
-    setBalls,
+    Droplets,
+    setDroplets,
     fillPercentage,
     setFillPercentage,
     gameWon,
@@ -322,29 +322,29 @@ const BallPackingGame: React.FC<BallPackingGameProps> = ({ outlineImage }) => {
   } = useGameState(triangles);
 
   const resetGame = useCallback(() => {
-    setBalls([]);
+    setDroplets([]);
     setGameWon(false);
     setFillPercentage(0);
     generateShape();
-  }, [generateShape, setBalls, setGameWon, setFillPercentage]);
+  }, [generateShape, setDroplets, setGameWon, setFillPercentage]);
 
   const handleClick = useCallback(() => {
     if (!gameWon && spouts.length > 0) {
-      const ballType = getRandomBallSize();
+      const DropletType = getRandomDropletSize();
       const dropPoint = spouts[selectedVertex];
-      const newBall = {
-        id: balls.length,
+      const newDroplet = {
+        id: Droplets.length,
         x: dropPoint[0],
         y: dropPoint[1],
         velX: 0,
         velY: 0,
-        radius: ballType.size,
+        radius: DropletType.size,
         color: generateRandomColor(),
-        type: ballType.name
+        type: DropletType.name
       };
-      setBalls(prev => [...prev, newBall]);
+      setDroplets(prev => [...prev, newDroplet]);
     }
-  }, [gameWon, spouts, selectedVertex, balls.length, setBalls]);
+  }, [gameWon, spouts, selectedVertex, Droplets.length, setDroplets]);
   
   const handleVertexClick = useCallback((index: number, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -352,9 +352,9 @@ const BallPackingGame: React.FC<BallPackingGameProps> = ({ outlineImage }) => {
   }, [setSelectedVertex]);
 
   useEffect(() => {
-    if (balls.length > 0) {
+    if (Droplets.length > 0) {
       const animate = () => {
-        setBalls(prevBalls => prevBalls.map(ball => updateBallPhysics(ball, prevBalls)));
+        setDroplets(prevDroplets => prevDroplets.map(Droplet => updateDropletPhysics(Droplet, prevDroplets)));
         
         const percentage = calculateFillPercentage();
         setFillPercentage(percentage);
@@ -373,11 +373,11 @@ const BallPackingGame: React.FC<BallPackingGameProps> = ({ outlineImage }) => {
       };
     }
   }, [
-    balls.length, 
+    Droplets.length, 
     gameWon, 
-    updateBallPhysics, 
+    updateDropletPhysics, 
     calculateFillPercentage, 
-    setBalls, 
+    setDroplets, 
     setFillPercentage, 
     setGameWon,
     requestRef
@@ -407,7 +407,7 @@ const BallPackingGame: React.FC<BallPackingGameProps> = ({ outlineImage }) => {
               selectedVertex={selectedVertex}
               onSpoutClick={handleVertexClick}
             />
-            <GameBalls balls={balls} />
+            <GameDroplets Droplets={Droplets} />
           </svg>
           
           {gameWon && <WinOverlay />}
@@ -417,4 +417,4 @@ const BallPackingGame: React.FC<BallPackingGameProps> = ({ outlineImage }) => {
   );
 };
 
-export default BallPackingGame;
+export default FlowerFiller;
