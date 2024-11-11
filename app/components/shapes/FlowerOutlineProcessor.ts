@@ -10,83 +10,94 @@ interface EnhancedOutline {
     };
 }
 
-// Constants for outline processing
-const MIN_SEGMENT_LENGTH = 5;  // Minimum length between points
-const MAX_SEGMENT_LENGTH = 15; // Maximum length between points
-const SMOOTHING_FACTOR = 0.25; // Controls curve smoothness (0-1)
-
 export const processImageOutline = (imageData: ImageData): Point[] => {
+    console.log('Processing image outline:', imageData.width, 'x', imageData.height);
     const width = imageData.width;
     const height = imageData.height;
     const visited = new Set<string>();
     const outline: Point[] = [];
     
-    // Find the first white pixel (starting point)
+    // Find leftmost white pixel as starting point
     let startPoint: Point | null = null;
     for (let y = 0; y < height && !startPoint; y++) {
-        for (let x = 0; x < width && !startPoint; x++) {
+        for (let x = 0; x < width; x++) {
             const idx = (y * width + x) * 4;
             if (isWhitePixel(imageData.data, idx)) {
                 startPoint = [x, y];
+                break;
             }
         }
     }
     
-    if (!startPoint) return [];
+    if (!startPoint) {
+        console.log('No start point found');
+        return [];
+    }
 
-    // Trace the outline using Moore neighborhood tracing
-    const traceOutline = (start: Point) => {
-        let current: Point = [start[0], start[1]];
-        let direction = 0; // 0: right, 1: down, 2: left, 3: up
-        
-        do {
-            const key = `${current[0]},${current[1]}`;
-            if (!visited.has(key)) {
-                outline.push([current[0], current[1]]);
-                visited.add(key);
+    console.log('Starting trace from:', startPoint);
+
+    // Moore neighborhood tracing algorithm
+    const directionOffsets: Point[] = [
+        [1, 0],   // right
+        [1, 1],   // down-right
+        [0, 1],   // down
+        [-1, 1],  // down-left
+        [-1, 0],  // left
+        [-1, -1], // up-left
+        [0, -1],  // up
+        [1, -1]   // up-right
+    ];
+
+    let current = [...startPoint];
+    let backtrackDir = 5; // Start looking up-left
+    
+    do {
+        // Add current point if not visited
+        const key = `${current[0]},${current[1]}`;
+        if (!visited.has(key)) {
+            outline.push([current[0], current[1]]);
+            visited.add(key);
+        }
+
+        // Look for next white pixel, starting from backtrack direction
+        let found = false;
+        for (let i = 0; i < 8; i++) {
+            const checkDir = (backtrackDir + i) % 8;
+            const next: Point = [
+                current[0] + directionOffsets[checkDir][0],
+                current[1] + directionOffsets[checkDir][1]
+            ];
+
+            if (isValidOutlinePoint(next, imageData, width, height)) {
+                // Update backtrack direction for next iteration
+                // This ensures we continue following the boundary
+                backtrackDir = (checkDir + 4) % 8;
+                current = next;
+                found = true;
+                break;
             }
-            
-            // Check neighbors in clockwise order starting from current direction
-            let found = false;
-            for (let i = 0; i < 8; i++) {
-                const neighbor = getNeighborPoint(current, (direction + i) % 8);
-                if (isValidOutlinePoint(neighbor, imageData, width, height)) {
-                    current = [neighbor[0], neighbor[1]];
-                    direction = (direction + i) % 8;
-                    found = true;
-                    break;
-                }
-            }
-            
-            if (!found) break;
-            
-        } while (current[0] !== start[0] || current[1] !== start[1]);
-    };
-    
-    traceOutline(startPoint);
-    
-    // Enhance the outline with additional processing steps
-    const enhancedOutline = enhanceOutline(outline);
-    const smoothOutline = smoothPoints(enhancedOutline);
-    const finalOutline = resamplePoints(smoothOutline);
-    
-    return finalOutline;
+        }
+
+        if (!found) {
+            console.log('Trace terminated - no valid neighbors found');
+            break;
+        }
+
+    } while (!(current[0] === startPoint[0] && current[1] === startPoint[1]) && 
+             outline.length < width * height);
+
+    console.log('Trace complete, points found:', outline.length);
+
+    // Reduce number of points while maintaining shape
+    const simplified = simplifyPoints(outline);
+    console.log('Simplified to points:', simplified.length);
+
+    return simplified;
 };
 
-// Helper functions
 const isWhitePixel = (data: Uint8ClampedArray, idx: number): boolean => {
-    return data[idx] > 200 && data[idx + 1] > 200 && data[idx + 2] > 200;
-};
-
-const getNeighborPoint = (point: Point, direction: number): Point => {
-    const directions: Point[] = [
-        [1, 0], [1, 1], [0, 1], [-1, 1],
-        [-1, 0], [-1, -1], [0, -1], [1, -1]
-    ];
-    return [
-        point[0] + directions[direction][0],
-        point[1] + directions[direction][1]
-    ];
+    const threshold = 200;
+    return data[idx] > threshold && data[idx + 1] > threshold && data[idx + 2] > threshold;
 };
 
 const isValidOutlinePoint = (
@@ -103,86 +114,35 @@ const isValidOutlinePoint = (
     return isWhitePixel(imageData.data, idx);
 };
 
-const enhanceOutline = (points: Point[]): Point[] => {
-    const enhanced: Point[] = [];
+// Simplify points using distance-based reduction
+const simplifyPoints = (points: Point[]): Point[] => {
+    if (points.length <= 3) return points;
     
-    for (let i = 0; i < points.length; i++) {
-        const current = points[i];
-        const next = points[(i + 1) % points.length];
-        
-        enhanced.push([current[0], current[1]]);
-        
-        // Calculate distance to next point
-        const dx = next[0] - current[0];
-        const dy = next[1] - current[1];
+    const simplified: Point[] = [points[0]];
+    let lastPoint = points[0];
+    const minDistance = 5; // Minimum distance between points
+    
+    for (let i = 1; i < points.length; i++) {
+        const dx = points[i][0] - lastPoint[0];
+        const dy = points[i][1] - lastPoint[1];
         const distance = Math.sqrt(dx * dx + dy * dy);
         
-        // Add intermediate points if distance is too large
-        if (distance > MAX_SEGMENT_LENGTH) {
-            const steps = Math.ceil(distance / MIN_SEGMENT_LENGTH);
-            for (let j = 1; j < steps; j++) {
-                const t = j / steps;
-                enhanced.push([
-                    current[0] + dx * t,
-                    current[1] + dy * t
-                ]);
-            }
+        if (distance >= minDistance) {
+            simplified.push(points[i]);
+            lastPoint = points[i];
         }
     }
     
-    return enhanced;
-};
-
-const smoothPoints = (points: Point[]): Point[] => {
-    const smoothed: Point[] = [];
-    const n = points.length;
-    
-    for (let i = 0; i < n; i++) {
-        const prev = points[(i - 1 + n) % n];
-        const curr = points[i];
-        const next = points[(i + 1) % n];
-        
-        // Calculate centroid of three consecutive points
-        const centerX = (prev[0] + curr[0] + next[0]) / 3;
-        const centerY = (prev[1] + curr[1] + next[1]) / 3;
-        
-        // Interpolate between original point and centroid
-        smoothed.push([
-            curr[0] * (1 - SMOOTHING_FACTOR) + centerX * SMOOTHING_FACTOR,
-            curr[1] * (1 - SMOOTHING_FACTOR) + centerY * SMOOTHING_FACTOR
-        ]);
+    // Ensure we close the loop if needed
+    const first = simplified[0];
+    const last = simplified[simplified.length - 1];
+    const dx = last[0] - first[0];
+    const dy = last[1] - first[1];
+    if (Math.sqrt(dx * dx + dy * dy) > minDistance) {
+        simplified.push(first);
     }
     
-    return smoothed;
-};
-
-const resamplePoints = (points: Point[]): Point[] => {
-    const resampled: Point[] = [];
-    
-    for (let i = 0; i < points.length; i++) {
-        const current = points[i];
-        const next = points[(i + 1) % points.length];
-        
-        resampled.push([current[0], current[1]]);
-        
-        const dx = next[0] - current[0];
-        const dy = next[1] - current[1];
-        const segmentLength = Math.sqrt(dx * dx + dy * dy);
-        
-        // Add intermediate points to maintain minimum segment length
-        if (segmentLength > MIN_SEGMENT_LENGTH) {
-            const steps = Math.floor(segmentLength / MIN_SEGMENT_LENGTH);
-            for (let j = 1; j < steps; j++) {
-                const t = j / steps;
-                resampled.push([
-                    current[0] + dx * t,
-                    current[1] + dy * t
-                ]);
-            }
-        }
-    }
-    
-    return resampled;
+    return simplified;
 };
 
 export const normalizeOutline = (
@@ -190,6 +150,13 @@ export const normalizeOutline = (
     targetWidth: number,
     targetHeight: number
 ): EnhancedOutline => {
+    if (points.length === 0) {
+        return {
+            vertices: [],
+            bounds: { minX: 0, minY: 0, maxX: targetWidth, maxY: targetHeight }
+        };
+    }
+
     // Find bounds
     const bounds = points.reduce((acc, [x, y]) => ({
         minX: Math.min(acc.minX, x),
@@ -203,12 +170,10 @@ export const normalizeOutline = (
         maxY: -Infinity
     });
     
-    // Calculate scale factors
     const scaleX = targetWidth / (bounds.maxX - bounds.minX);
     const scaleY = targetHeight / (bounds.maxY - bounds.minY);
-    const scale = Math.min(scaleX, scaleY) * 0.8; // 80% of available space
+    const scale = Math.min(scaleX, scaleY) * 0.8;
     
-    // Normalize and center points
     const normalized = points.map(([x, y]): Point => [
         (x - bounds.minX) * scale + (targetWidth - (bounds.maxX - bounds.minX) * scale) / 2,
         (y - bounds.minY) * scale + (targetHeight - (bounds.maxY - bounds.minY) * scale) / 2
@@ -225,12 +190,12 @@ export const normalizeOutline = (
     };
 };
 
-
 export const selectSpoutPoints = (vertices: Point[], numSpouts: number = 3): Point[] => {
+    if (vertices.length < numSpouts) return vertices;
+    
     const spouts: Point[] = [];
     const step = Math.floor(vertices.length / numSpouts);
     
-    // Select evenly spaced points along the outline
     for (let i = 0; i < numSpouts; i++) {
         const index = (i * step) % vertices.length;
         spouts.push([vertices[index][0], vertices[index][1]]);
