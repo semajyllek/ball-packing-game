@@ -58,7 +58,7 @@ export function useFlowerDataset() {
           const match = outlinePath.match(/flower_outline_(\d+)\.png$/);
           if (match) {
             const index = parseInt(match[1]);
-            const originalFileName = `flower_original_${match[1]}.png`;
+            const originalFileName = `flower_original_${match[1]}.jpg`;
             const originalPath = originalFiles.find(path => path.endsWith(originalFileName));
 
             if (originalPath) {
