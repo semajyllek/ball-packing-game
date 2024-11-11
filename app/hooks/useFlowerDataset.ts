@@ -58,6 +58,7 @@ export function useFlowerDataset() {
           if (match) {
             const index = match[1];
             const originalPath = originalFiles.find(path => path.includes(index));
+            console.log('Found match:', { index, originalPath });
             
             if (originalPath) {
               pairs.push({
