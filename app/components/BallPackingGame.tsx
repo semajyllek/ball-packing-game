@@ -8,7 +8,6 @@ import {
     processImageOutline, 
     normalizeOutline, 
     selectSpoutPoints,
-    FlowerOutline 
 } from './shapes/FlowerOutlineProcessor';
 
 // Types
@@ -54,7 +53,6 @@ interface BallPackingGameProps {
 
 // Constants
 const GAME_WIDTH = 600;
-const GAME_HEIGHT = 600;
 const VISIBLE_HEIGHT = 400;
 const BOUNCE_FACTOR = 0.5;
 const DAMPING = 0.99;

@@ -38,7 +38,7 @@ export const triangulate = (vertices: Point[]): Point[][] => {
     if (vertices.length < 3) return [];
     
     // Make a copy so we can modify the vertices
-    let remaining = [...vertices];
+    const remaining = [...vertices];
     const triangles: Point[][] = [];
     let attempts = 0;
     const maxAttempts = vertices.length * 2; // Prevent infinite loops
