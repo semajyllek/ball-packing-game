@@ -55,10 +55,10 @@ export function useFlowerDataset() {
         const pairs: FlowerPair[] = [];
 
         outlineFiles.forEach(outlinePath => {
-          const match = outlinePath.match(/flower_outline_(\d+)\.jpg$/);
+          const match = outlinePath.match(/flower_outline_(\d+)\.png$/);
           if (match) {
             const index = parseInt(match[1]);
-            const originalFileName = `flower_original_${match[1]}.jpg`;
+            const originalFileName = `flower_original_${match[1]}.png`;
             const originalPath = originalFiles.find(path => path.endsWith(originalFileName));
 
             if (originalPath) {
