@@ -5,3 +5,5 @@ This is a simple game where you have to pack balls (droplets) into an outline of
 ![screenshot](docs/game_screenshot.png)
 
 you can play the game here: https://semajyllek.github.io/flower-filler/
+
+successful pushes to the `main` branch will trigger a deployment to github pages.
