@@ -10,7 +10,9 @@ async function parseS3ListXML(text: string): Promise<string[]> {
   const parser = new DOMParser();
   const xml = parser.parseFromString(text, 'text/xml');
   const keys = Array.from(xml.getElementsByTagName('Key'));
-  return keys.map(key => key.textContent || '');
+  return keys
+    .map(key => key.textContent || '')
+    .filter(key => !key.endsWith('.txt')); // Ignore .txt files
 }
 
 const S3_REGION = 'us-west-2';
@@ -26,7 +28,7 @@ export function useFlowerDataset() {
     async function loadFlowerDataset() {
       try {
         setIsLoading(true);
-        const listUrl = `${BASE_URL}/${BUCKET_NAME}?list-type=2&prefix=flower_dataset/&delimiter=/`;
+        const listUrl = `${BASE_URL}/${BUCKET_NAME}?list-type=2&prefix=flower_dataset/`;
         console.log('Fetching from:', listUrl);
         
         const response = await fetch(listUrl);
