@@ -1,8 +1,8 @@
 {
-  "name": "my-game",
+  "name": "flower-filler",
   "version": "0.1.0",
   "private": true,
-  "homepage": "https://semajyllek.github.io/ball-packing-game",
+  "homepage": "https://semajyllek.github.io/flower-filler",
   "scripts": {
     "build": "next build",
     "deploy": "gh-pages -d build",
