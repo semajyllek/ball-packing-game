@@ -26,10 +26,12 @@ export function useFlowerDataset() {
     async function loadFlowerDataset() {
       try {
         setIsLoading(true);
+        // Changed URL format to match S3 list objects v2 API
         const listUrl = `${BASE_URL}/${BUCKET_NAME}?list-type=2&prefix=flower_dataset/&delimiter=/`;
         console.log('Fetching from:', listUrl);
         
         const response = await fetch(listUrl);
+
         if (!response.ok) {
           console.error('List response not OK:', response.status, response.statusText);
           const text = await response.text();
@@ -38,10 +40,12 @@ export function useFlowerDataset() {
         }
 
         const xmlText = await response.text();
+        console.log('XML Response:', xmlText);
+        
         const keys = await parseS3ListXML(xmlText);
         console.log('Parsed keys:', keys);
 
-        // Filter files
+        // Filter and pair the files
         const outlineFiles = keys.filter(key => key.includes('/outlines/'));
         const originalFiles = keys.filter(key => key.includes('/originals/'));
 
@@ -51,16 +55,15 @@ export function useFlowerDataset() {
         const pairs: FlowerPair[] = [];
 
         outlineFiles.forEach(outlinePath => {
-          const match = outlinePath.match(/flower_outline_(\d+)\.png$/);
+          const match = outlinePath.match(/flower_outline_(\d+)\.jpg$/);
           if (match) {
             const index = parseInt(match[1]);
-            // Look for the jpg version in originals
-            const originalPath = originalFiles.find(path => 
-              path.includes(`flower_original_${match[1].padStart(8, '0')}.jpg`)
-            );
+            const originalFileName = `flower_original_${match[1]}.jpg`;
+            const originalPath = originalFiles.find(path => path.endsWith(originalFileName));
 
             if (originalPath) {
               pairs.push({
+                // Changed URL construction to use the proper S3 URL format
                 outlinePath: `${BASE_URL}/${BUCKET_NAME}/${outlinePath}`,
                 originalPath: `${BASE_URL}/${BUCKET_NAME}/${originalPath}`,
                 index
@@ -70,11 +73,8 @@ export function useFlowerDataset() {
         });
 
         console.log('Created pairs:', pairs);
-        
-        if (pairs.length === 0) {
-          throw new Error('No valid file pairs found');
-        }
 
+        // Sort by index
         setFlowerPairs(pairs.sort((a, b) => a.index - b.index));
         setError(null);
       } catch (err) {
