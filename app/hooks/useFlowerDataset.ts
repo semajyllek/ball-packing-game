@@ -6,7 +6,6 @@ interface FlowerPair {
   index: number;
 }
 
-// useless comment
 async function parseS3ListXML(text: string): Promise<string[]> {
   const parser = new DOMParser();
   const xml = parser.parseFromString(text, 'text/xml');
