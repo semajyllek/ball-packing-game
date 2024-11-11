@@ -2,8 +2,14 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { RotateCcw } from 'lucide-react';
-import { generateCompoundShape } from './shapes/GenShape';
+import { Point } from './shapes/GeometryUtils';
 import { triangulate } from './shapes/PolygonUtils';
+import { 
+    processImageOutline, 
+    normalizeOutline, 
+    selectSpoutPoints,
+    FlowerOutline 
+} from './shapes/FlowerOutlineProcessor';
 
 // Types
 interface Ball {
@@ -28,6 +34,24 @@ interface BallSize {
   name: string;
 }
 
+interface GameHeaderProps {
+  fillPercentage: number;
+  onReset: () => void;
+}
+
+interface GameShapeProps extends GameShape {
+  selectedVertex: number;
+  onSpoutClick: (index: number, e: React.MouseEvent) => void;
+}
+
+interface GameBallsProps {
+  balls: Ball[];
+}
+
+interface BallPackingGameProps {
+  outlineImage: ImageData;
+}
+
 // Constants
 const GAME_WIDTH = 600;
 const GAME_HEIGHT = 600;
@@ -44,37 +68,6 @@ const BALL_SIZES: BallSize[] = [
   { size: 6, weight: 0.20, name: 'medium-small' },
   { size: 4, weight: 0.25, name: 'very-small' }
 ];
-
-// Utility Functions
-const getRandomBallSize = (): BallSize => {
-  const random = Math.random();
-  let sum = 0;
-  for (const ball of BALL_SIZES) {
-    sum += ball.weight;
-    if (random < sum) {
-      return ball;
-    }
-  }
-  return BALL_SIZES[BALL_SIZES.length - 1];
-};
-
-const generateRandomColor = (): string => 
-  `hsl(${Math.random() * 360}, 70%, 50%)`;
-
-// Component Props Interfaces
-interface GameHeaderProps {
-  fillPercentage: number;
-  onReset: () => void;
-}
-
-interface GameShapeProps extends GameShape {
-  selectedVertex: number;
-  onSpoutClick: (index: number, e: React.MouseEvent) => void;
-}
-
-interface GameBallsProps {
-  balls: Ball[];
-}
 
 // Components
 const GameHeader: React.FC<GameHeaderProps> = ({ fillPercentage, onReset }) => (
@@ -144,66 +137,30 @@ const WinOverlay: React.FC = () => (
   </div>
 );
 
-// Game Logic Hooks
-const useGameShape = () => {
-  const [vertices, setVertices] = useState<number[][]>([]);
-  const [spouts, setSpouts] = useState<number[][]>([]);
+// Hooks
+const useFlowerShape = (outlineImage: ImageData) => {
+  const [vertices, setVertices] = useState<Point[]>([]);
+  const [spouts, setSpouts] = useState<Point[]>([]);
   const [triangles, setTriangles] = useState<number[][][]>([]);
-
-  const generateFallbackShape = () => {
-    const fallbackVertices = [
-      [GAME_WIDTH/2, VISIBLE_HEIGHT/4],
-      [GAME_WIDTH * 0.75, VISIBLE_HEIGHT/2],
-      [GAME_WIDTH * 0.75, VISIBLE_HEIGHT * 0.75],
-      [GAME_WIDTH/2, VISIBLE_HEIGHT * 0.85],
-      [GAME_WIDTH * 0.25, VISIBLE_HEIGHT * 0.75],
-      [GAME_WIDTH * 0.25, VISIBLE_HEIGHT/2]
-    ];
-
-    const fallbackSpouts = [
-      [GAME_WIDTH/2, VISIBLE_HEIGHT/4],
-      [GAME_WIDTH * 0.75, VISIBLE_HEIGHT/2]
-    ];
-
-    const centerPoint = [GAME_WIDTH/2, VISIBLE_HEIGHT/2];
-    const fallbackTriangles = fallbackVertices.map((vertex, i) => {
-      const nextVertex = fallbackVertices[(i + 1) % fallbackVertices.length];
-      return [centerPoint, vertex, nextVertex];
-    });
-
-    return { fallbackVertices, fallbackSpouts, fallbackTriangles };
-  };
 
   const generateShape = useCallback(() => {
     try {
-      const shape = generateCompoundShape(GAME_WIDTH, GAME_HEIGHT);
-      const scaleY = VISIBLE_HEIGHT / GAME_HEIGHT;
+      const outlinePoints = processImageOutline(outlineImage);
+      const { vertices: normalizedVertices } = normalizeOutline(
+        outlinePoints,
+        GAME_WIDTH,
+        VISIBLE_HEIGHT
+      );
+      const newSpouts = selectSpoutPoints(normalizedVertices);
+      const newTriangles = triangulate(normalizedVertices.map(p => [p[0], p[1]]));
       
-      const scaledVertices = shape.outline.map(v => [
-        v[0],
-        v[1] * scaleY
-      ]);
-      
-      const scaledSpouts = shape.spouts.map(v => [
-        v[0],
-        v[1] * scaleY
-      ]);
-
-      const newTriangles = triangulate(scaledVertices);
-
-      setVertices(scaledVertices);
+      setVertices(normalizedVertices);
       setTriangles(newTriangles);
-      setSpouts(scaledSpouts);
-
+      setSpouts(newSpouts);
     } catch (error) {
-      console.log('Error generating shape:', error);
-      const { fallbackVertices, fallbackSpouts, fallbackTriangles } = generateFallbackShape();
-      
-      setVertices(fallbackVertices);
-      setTriangles(fallbackTriangles);
-      setSpouts(fallbackSpouts);
+      console.error('Error processing flower outline:', error);
     }
-  }, []);
+  }, [outlineImage]);
 
   return {
     vertices,
@@ -213,8 +170,8 @@ const useGameShape = () => {
   };
 };
 
-const usePhysics = (vertices: number[][]) => {
-  const isPointInPolygon = useCallback((point: number[]) => {
+const usePhysics = (vertices: Point[]) => {
+  const isPointInPolygon = useCallback((point: Point) => {
     let inside = false;
     for (let i = 0, j = vertices.length - 1; i < vertices.length; j = i++) {
       const xi = vertices[i][0], yi = vertices[i][1];
@@ -227,8 +184,8 @@ const usePhysics = (vertices: number[][]) => {
     return inside;
   }, [vertices]);
 
-  const findNearestEdgePoint = useCallback((point: number[]) => {
-    const nearestPoint = [...point];
+  const findNearestEdgePoint = useCallback((point: Point) => {
+    const nearestPoint: Point = [...point];
     let moved = false;
     const step = 0.5;
     
@@ -333,9 +290,25 @@ const useGameState = (triangles: number[][][]) => {
   };
 };
 
+// Utility Functions
+const getRandomBallSize = (): BallSize => {
+  const random = Math.random();
+  let sum = 0;
+  for (const ball of BALL_SIZES) {
+    sum += ball.weight;
+    if (random < sum) {
+      return ball;
+    }
+  }
+  return BALL_SIZES[BALL_SIZES.length - 1];
+};
+
+const generateRandomColor = (): string => 
+  `hsl(${Math.random() * 360}, 70%, 50%)`;
+
 // Main Component
-const BallPackingGame: React.FC = () => {
-  const { vertices, spouts, triangles, generateShape } = useGameShape();
+const BallPackingGame: React.FC<BallPackingGameProps> = ({ outlineImage }) => {
+  const { vertices, spouts, triangles, generateShape } = useFlowerShape(outlineImage);
   const { updateBallPhysics } = usePhysics(vertices);
   const {
     balls,
@@ -349,6 +322,13 @@ const BallPackingGame: React.FC = () => {
     requestRef,
     calculateFillPercentage
   } = useGameState(triangles);
+
+  const resetGame = useCallback(() => {
+    setBalls([]);
+    setGameWon(false);
+    setFillPercentage(0);
+    generateShape();
+  }, [generateShape, setBalls, setGameWon, setFillPercentage]);
 
   const handleClick = useCallback(() => {
     if (!gameWon && spouts.length > 0) {
@@ -372,15 +352,7 @@ const BallPackingGame: React.FC = () => {
     e.stopPropagation();
     setSelectedVertex(index);
   }, [setSelectedVertex]);
-  
-  const resetGame = useCallback(() => {
-    setBalls([]);
-    setGameWon(false);
-    setFillPercentage(0);
-    generateShape();
-  }, [generateShape, setBalls, setGameWon, setFillPercentage]);
-  
-  // Fix the animation effect with missing dependencies
+
   useEffect(() => {
     if (balls.length > 0) {
       const animate = () => {
@@ -413,16 +385,9 @@ const BallPackingGame: React.FC = () => {
     requestRef
   ]);
 
-  // Initial Setup
   useEffect(() => {
     generateShape();
   }, [generateShape]);
-
-
-
-
-
-
 
   return (
     <div className="w-full max-w-4xl mx-auto p-4">
