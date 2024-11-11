@@ -12,11 +12,6 @@ export default function Home() {
   const [isLoadingImage, setIsLoadingImage] = useState(false);
 
   useEffect(() => {
-    console.log('Current flowerPairs:', flowerPairs);
-  }, [flowerPairs]);
-
-  // Load current image when index changes
-  useEffect(() => {
     if (!flowerPairs.length || currentIndex >= flowerPairs.length) {
       console.log('No flowers to load or invalid index', { 
         pairsLength: flowerPairs.length, 
@@ -32,6 +27,7 @@ export default function Home() {
         console.log('Loading flower:', currentPair);
         
         const img = new Image();
+        img.crossOrigin = "anonymous";  // Add this line
         
         const loadImage = new Promise((resolve, reject) => {
           img.onload = () => {
@@ -100,22 +96,6 @@ export default function Home() {
     );
   }
 
-  if (isLoadingImage) {
-    return (
-      <div className="min-h-screen p-4 flex items-center justify-center">
-        <div className="text-lg">Loading flower outline...</div>
-      </div>
-    );
-  }
-
-  if (!imageData) {
-    return (
-      <div className="min-h-screen p-4 flex items-center justify-center">
-        <div className="text-lg">No image data available</div>
-      </div>
-    );
-  }
-
   return (
     <main className="min-h-screen p-4">
       <div className="max-w-4xl mx-auto">
@@ -139,9 +119,15 @@ export default function Home() {
           </button>
         </div>
         
-        <div className="bg-white rounded-lg overflow-hidden">
-          <FlowerFiller outlineImage={imageData} />
-        </div>
+        {isLoadingImage ? (
+          <div className="h-[600px] flex items-center justify-center bg-gray-100 rounded-lg">
+            <div className="text-lg">Loading flower outline...</div>
+          </div>
+        ) : imageData ? (
+          <div className="bg-white rounded-lg overflow-hidden">
+            <FlowerFiller outlineImage={imageData} />
+          </div>
+        ) : null}
       </div>
     </main>
   );
