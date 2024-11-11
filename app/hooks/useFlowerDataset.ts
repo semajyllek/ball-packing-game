@@ -54,7 +54,7 @@ export function useFlowerDataset() {
             const index = parseInt(match[1]);
             // Look for the jpg version in originals
             const originalPath = originalFiles.find(path => 
-              path.includes(`flower_original_${match[1].padStart(8, '0')}.jpg`)
+              path.includes(`flower_original_${match[1].padStart(8, '0')}.png`)
             );
 
             if (originalPath) {
