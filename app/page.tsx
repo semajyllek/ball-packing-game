@@ -9,61 +9,49 @@ export default function Home() {
   const [imageData, setImageData] = useState<ImageData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingImage, setIsLoadingImage] = useState(false);
 
+  // Load current image when index changes
   useEffect(() => {
-    if (!flowerPairs.length) return;
+    if (!flowerPairs.length || currentIndex >= flowerPairs.length) return;
 
-    const loadFlowerOutline = async () => {
+    async function loadCurrentImage() {
       try {
-        setIsLoading(true);
-        
-        const img = new Image();
+        setIsLoadingImage(true);
         const currentPair = flowerPairs[currentIndex];
         
-        if (!currentPair) {
-          setError('Invalid flower index');
-          return;
+        const img = new Image();
+        
+        const loadImage = new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = reject;
+          img.src = currentPair.outlinePath;
+        });
+
+        await loadImage;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          throw new Error('Could not get canvas context');
         }
 
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-          
-          if (!ctx) {
-            setError('Could not get canvas context');
-            return;
-          }
-          
-          canvas.width = img.width;
-          canvas.height = img.height;
-          ctx.drawImage(img, 0, 0);
-          
-          try {
-            const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            setImageData(data);
-            setError(null);
-          } catch (e) {
-            setError('Failed to process image data');
-          }
-          
-          setIsLoading(false);
-        };
-
-        img.onerror = () => {
-          setError(`Failed to load flower outline #${currentPair.index}`);
-          setIsLoading(false);
-        };
-
-        img.src = currentPair.outlinePath;
-        
+        ctx.drawImage(img, 0, 0);
+        const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        setImageData(data);
+        setError(null);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Unknown error occurred');
-        setIsLoading(false);
+        console.error('Error loading image:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load image');
+      } finally {
+        setIsLoadingImage(false);
       }
-    };
+    }
 
-    loadFlowerOutline();
+    loadCurrentImage();
   }, [currentIndex, flowerPairs]);
 
   if (loadingDataset) {
@@ -80,20 +68,12 @@ export default function Home() {
         <div className="text-red-500 text-center">
           <div className="mb-4">Error: {datasetError || error}</div>
           <button 
-            onClick={() => setCurrentIndex(0)}
+            onClick={() => window.location.reload()}
             className="px-4 py-2 bg-blue-500 text-white rounded"
           >
             Try Again
           </button>
         </div>
-      </div>
-    );
-  }
-
-  if (isLoading || !imageData) {
-    return (
-      <div className="min-h-screen p-4 flex items-center justify-center">
-        <div className="text-lg">Loading flower outline...</div>
       </div>
     );
   }
@@ -105,7 +85,7 @@ export default function Home() {
           <button 
             onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))}
             className="px-4 py-2 bg-blue-500 text-white rounded disabled:bg-blue-300"
-            disabled={currentIndex === 0}
+            disabled={currentIndex === 0 || isLoadingImage}
           >
             Previous Flower
           </button>
@@ -115,12 +95,19 @@ export default function Home() {
           <button 
             onClick={() => setCurrentIndex(prev => Math.min(flowerPairs.length - 1, prev + 1))}
             className="px-4 py-2 bg-blue-500 text-white rounded"
-            disabled={currentIndex >= flowerPairs.length - 1}
+            disabled={currentIndex >= flowerPairs.length - 1 || isLoadingImage}
           >
             Next Flower
           </button>
         </div>
-        <FlowerFiller outlineImage={imageData} />
+        
+        {isLoadingImage ? (
+          <div className="h-[600px] flex items-center justify-center bg-gray-100 rounded-lg">
+            <div className="text-lg">Loading flower outline...</div>
+          </div>
+        ) : imageData ? (
+          <FlowerFiller outlineImage={imageData} />
+        ) : null}
       </div>
     </main>
   );
