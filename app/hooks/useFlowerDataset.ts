@@ -6,18 +6,18 @@ interface FlowerPair {
   index: number;
 }
 
+const S3_REGION = 'us-west-2';
+const BUCKET_NAME = 'flower-filler-bucket';
+const BASE_URL = `https://s3.${S3_REGION}.amazonaws.com`;
+
 async function parseS3ListXML(text: string): Promise<string[]> {
   const parser = new DOMParser();
   const xml = parser.parseFromString(text, 'text/xml');
   const keys = Array.from(xml.getElementsByTagName('Key'));
   return keys
     .map(key => key.textContent || '')
-    .filter(key => !key.endsWith('.txt')); // Ignore .txt files
+    .filter(key => key.endsWith('.png')); // Only get PNG files
 }
-
-const S3_REGION = 'us-west-2';
-const BUCKET_NAME = 'flower-filler-bucket';
-const BASE_URL = `https://s3.${S3_REGION}.amazonaws.com`;
 
 export function useFlowerDataset() {
   const [flowerPairs, setFlowerPairs] = useState<FlowerPair[]>([]);
@@ -28,19 +28,18 @@ export function useFlowerDataset() {
     async function loadFlowerDataset() {
       try {
         setIsLoading(true);
+        // Use the URL format that worked before
         const listUrl = `${BASE_URL}/${BUCKET_NAME}?list-type=2&prefix=flower_dataset/`;
         console.log('Fetching from:', listUrl);
         
         const response = await fetch(listUrl);
-
         if (!response.ok) {
-          console.error('List response not OK:', response.status, response.statusText);
-          const text = await response.text();
-          console.log('Error response:', text);
           throw new Error(`Failed to list objects: ${response.statusText}`);
         }
 
         const xmlText = await response.text();
+        console.log('XML Response:', xmlText);
+        
         const keys = await parseS3ListXML(xmlText);
         console.log('Parsed keys:', keys);
 
@@ -53,27 +52,18 @@ export function useFlowerDataset() {
 
         const pairs: FlowerPair[] = [];
 
+        // Simplified pairing logic
         outlineFiles.forEach(outlinePath => {
-          // Look for the index in the outline filename
-          const match = outlinePath.match(/flower_outline_(\d+)\.png$/);
+          const match = outlinePath.match(/(\d{8})\.png$/);
           if (match) {
-            const index = parseInt(match[1]);
-            // Look for matching original with same index
-            const originalPath = originalFiles.find(path => 
-              path.includes(`flower_original_${match[1].padStart(8, '0')}.`)
-            );
-
-            console.log(`For index ${index}:`, {
-              outlinePath,
-              originalPath,
-              matchString: `flower_original_${match[1].padStart(8, '0')}.`
-            });
-
+            const index = match[1];
+            const originalPath = originalFiles.find(path => path.includes(index));
+            
             if (originalPath) {
               pairs.push({
                 outlinePath: `${BASE_URL}/${BUCKET_NAME}/${outlinePath}`,
                 originalPath: `${BASE_URL}/${BUCKET_NAME}/${originalPath}`,
-                index
+                index: parseInt(index)
               });
             }
           }
@@ -87,7 +77,6 @@ export function useFlowerDataset() {
 
         // Sort by index
         const sortedPairs = pairs.sort((a, b) => a.index - b.index);
-        console.log('Sorted pairs:', sortedPairs);
         setFlowerPairs(sortedPairs);
         setError(null);
       } catch (err) {
