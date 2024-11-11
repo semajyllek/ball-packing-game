@@ -14,7 +14,6 @@ interface EnhancedOutline {
 const MIN_SEGMENT_LENGTH = 5;  // Minimum length between points
 const MAX_SEGMENT_LENGTH = 15; // Maximum length between points
 const SMOOTHING_FACTOR = 0.25; // Controls curve smoothness (0-1)
-const BORDER_PADDING = 2;      // Pixels to consider as border
 
 export const processImageOutline = (imageData: ImageData): Point[] => {
     const width = imageData.width;
@@ -67,7 +66,7 @@ export const processImageOutline = (imageData: ImageData): Point[] => {
     traceOutline(startPoint);
     
     // Enhance the outline with additional processing steps
-    const enhancedOutline = enhanceOutline(outline, width, height);
+    const enhancedOutline = enhanceOutline(outline);
     const smoothOutline = smoothPoints(enhancedOutline);
     const finalOutline = resamplePoints(smoothOutline);
     
@@ -104,7 +103,7 @@ const isValidOutlinePoint = (
     return isWhitePixel(imageData.data, idx);
 };
 
-const enhanceOutline = (points: Point[], width: number, height: number): Point[] => {
+const enhanceOutline = (points: Point[]): Point[] => {
     const enhanced: Point[] = [];
     
     for (let i = 0; i < points.length; i++) {
@@ -159,7 +158,6 @@ const smoothPoints = (points: Point[]): Point[] => {
 
 const resamplePoints = (points: Point[]): Point[] => {
     const resampled: Point[] = [];
-    let accumDistance = 0;
     
     for (let i = 0; i < points.length; i++) {
         const current = points[i];
@@ -170,8 +168,6 @@ const resamplePoints = (points: Point[]): Point[] => {
         const dx = next[0] - current[0];
         const dy = next[1] - current[1];
         const segmentLength = Math.sqrt(dx * dx + dy * dy);
-        
-        accumDistance += segmentLength;
         
         // Add intermediate points to maintain minimum segment length
         if (segmentLength > MIN_SEGMENT_LENGTH) {
@@ -227,4 +223,18 @@ export const normalizeOutline = (
             maxY: bounds.maxY * scale
         }
     };
+};
+
+
+export const selectSpoutPoints = (vertices: Point[], numSpouts: number = 3): Point[] => {
+    const spouts: Point[] = [];
+    const step = Math.floor(vertices.length / numSpouts);
+    
+    // Select evenly spaced points along the outline
+    for (let i = 0; i < numSpouts; i++) {
+        const index = (i * step) % vertices.length;
+        spouts.push([vertices[index][0], vertices[index][1]]);
+    }
+    
+    return spouts;
 };

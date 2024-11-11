@@ -417,4 +417,19 @@ const FlowerFiller: React.FC<FlowerFillerProps> = ({ outlineImage }) => {
   );
 };
 
+
+
+export const selectSpoutPoints = (vertices: Point[], numSpouts: number = 3): Point[] => {
+  const spouts: Point[] = [];
+  const step = Math.floor(vertices.length / numSpouts);
+  
+  // Select evenly spaced points along the outline
+  for (let i = 0; i < numSpouts; i++) {
+      const index = (i * step) % vertices.length;
+      spouts.push([vertices[index][0], vertices[index][1]]);
+  }
+  
+  return spouts;
+};
+
 export default FlowerFiller;
