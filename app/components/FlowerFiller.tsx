@@ -119,9 +119,6 @@ const FlowerFiller: React.FC<FlowerFillerProps> = ({ processedData }) => {
                     const angle = Math.atan2(dy, dx);
                     newX = other.x + Math.cos(angle) * minDistance;
                     newY = other.y + Math.sin(angle) * minDistance;
-                    
-                    const tmpVelX = newVelX;
-                    const tmpVelY = newVelY;
                     newVelX = other.velX * BOUNCE_FACTOR;
                     newVelY = other.velY * BOUNCE_FACTOR;
                 }
