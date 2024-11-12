@@ -1,134 +1,35 @@
+// page.tsx
 'use client';
 
-import { useEffect, useState } from 'react';
 import FlowerFiller from './components/FlowerFiller';
-import { useFlowerDataset } from './hooks/useFlowerDataset';
+import { useProcessedOutline } from './hooks/useProcessedOutline';
 
 export default function Home() {
-  const { flowerPairs, isLoading: loadingDataset, error: datasetError } = useFlowerDataset();
-  const [imageData, setImageData] = useState<ImageData | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [isLoadingImage, setIsLoadingImage] = useState(false);
+    const { outlineData, isLoading, error } = useProcessedOutline();
 
-  useEffect(() => {
-    if (!flowerPairs.length || currentIndex >= flowerPairs.length) {
-      console.log('No flowers to load or invalid index', { 
-        pairsLength: flowerPairs.length, 
-        currentIndex 
-      });
-      return;
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-screen">
+                <div className="text-lg">Loading flower outline...</div>
+            </div>
+        );
     }
 
-    async function loadCurrentImage() {
-      try {
-        setIsLoadingImage(true);
-        const currentPair = flowerPairs[currentIndex];
-        console.log('Loading flower:', currentPair);
-        
-        const img = new Image();
-        img.crossOrigin = "anonymous";  // Add this line
-        
-        const loadImage = new Promise((resolve, reject) => {
-          img.onload = () => {
-            console.log('Image loaded successfully');
-            resolve(null);
-          };
-          img.onerror = (e) => {
-            console.error('Image load error:', e);
-            reject(new Error('Failed to load image'));
-          };
-          console.log('Setting image source:', currentPair.outlinePath);
-          img.src = currentPair.outlinePath;
-        });
-
-        await loadImage;
-
-        const canvas = document.createElement('canvas');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          throw new Error('Could not get canvas context');
-        }
-
-        ctx.drawImage(img, 0, 0);
-        const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        console.log('Image data created:', { 
-          width: data.width, 
-          height: data.height 
-        });
-        setImageData(data);
-        setError(null);
-      } catch (err) {
-        console.error('Error loading image:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load image');
-      } finally {
-        setIsLoadingImage(false);
-      }
+    if (error) {
+        return (
+            <div className="flex items-center justify-center min-h-screen">
+                <div className="text-lg text-red-500">Error: {error}</div>
+            </div>
+        );
     }
 
-    loadCurrentImage();
-  }, [currentIndex, flowerPairs]);
+    if (!outlineData) {
+        return (
+            <div className="flex items-center justify-center min-h-screen">
+                <div className="text-lg">No outline data available</div>
+            </div>
+        );
+    }
 
-  if (loadingDataset) {
-    return (
-      <div className="min-h-screen p-4 flex items-center justify-center">
-        <div className="text-lg">Loading flower dataset...</div>
-      </div>
-    );
-  }
-
-  if (datasetError || error) {
-    return (
-      <div className="min-h-screen p-4 flex flex-col items-center justify-center">
-        <div className="text-red-500 text-center">
-          <div className="mb-4">Error: {datasetError || error}</div>
-          <button 
-            onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-blue-500 text-white rounded"
-          >
-            Try Again
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <main className="min-h-screen p-4">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex justify-between mb-4">
-          <button 
-            onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))}
-            className="px-4 py-2 bg-blue-500 text-white rounded disabled:bg-blue-300"
-            disabled={currentIndex === 0 || isLoadingImage}
-          >
-            Previous Flower
-          </button>
-          <span className="py-2">
-            Flower #{flowerPairs[currentIndex]?.index ?? currentIndex}
-          </span>
-          <button 
-            onClick={() => setCurrentIndex(prev => Math.min(flowerPairs.length - 1, prev + 1))}
-            className="px-4 py-2 bg-blue-500 text-white rounded"
-            disabled={currentIndex >= flowerPairs.length - 1 || isLoadingImage}
-          >
-            Next Flower
-          </button>
-        </div>
-        
-        {isLoadingImage ? (
-          <div className="h-[600px] flex items-center justify-center bg-gray-100 rounded-lg">
-            <div className="text-lg">Loading flower outline...</div>
-          </div>
-        ) : imageData ? (
-          <div className="bg-white rounded-lg overflow-hidden">
-            <FlowerFiller outlineImage={imageData} />
-          </div>
-        ) : null}
-      </div>
-    </main>
-  );
+    return <FlowerFiller processedData={outlineData} />;
 }
