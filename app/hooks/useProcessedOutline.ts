@@ -1,5 +1,5 @@
 // useProcessedOutline.ts
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 interface ProcessedFlowerData {
     vertices: [number, number][];
@@ -28,59 +28,82 @@ export function useProcessedOutline() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        async function loadRandomOutline() {
-            try {
-                setIsLoading(true);
-                
-                // List all processed outlines
-                const listUrl = `${BASE_URL}?list-type=2&prefix=processed_outlines/`;
-                const response = await fetch(listUrl);
-                if (!response.ok) {
-                    throw new Error(`Failed to list objects: ${response.statusText}`);
-                }
-
-                const xmlText = await response.text();
-                const keys = await parseS3ListXML(xmlText);
-                
-                // Filter for JSON files
-                const jsonFiles = keys.filter(key => key.endsWith('.json'));
-                
-                if (jsonFiles.length === 0) {
-                    throw new Error('No processed outlines found');
-                }
-
-                // Pick a random file
-                const randomIndex = Math.floor(Math.random() * jsonFiles.length);
-                const selectedKey = jsonFiles[randomIndex];
-                
-                // Fetch the selected outline data
-                const outlineUrl = `${BASE_URL}/${selectedKey}`;
-                console.log('Fetching outline from:', outlineUrl);
-                
-                const outlineResponse = await fetch(outlineUrl);
-                if (!outlineResponse.ok) {
-                    throw new Error(`Failed to fetch outline: ${outlineResponse.statusText}`);
-                }
-
-                const data = await outlineResponse.json();
-                setOutlineData(data);
-                setError(null);
-                
-            } catch (err) {
-                console.error('Error loading outline:', err);
-                setError(err instanceof Error ? err.message : 'Failed to load outline');
-            } finally {
-                setIsLoading(false);
+    const loadRandomOutline = useCallback(async () => {
+        try {
+            setIsLoading(true);
+            
+            // List all processed outlines
+            const listUrl = `${BASE_URL}?list-type=2&prefix=flower_dataset/processed_outlines/`;
+            console.log('Fetching list from:', listUrl);
+            
+            const response = await fetch(listUrl);
+            if (!response.ok) {
+                console.error('List response not OK:', response.status, response.statusText);
+                const text = await response.text();
+                console.log('Error response:', text);
+                throw new Error(`Failed to list objects: ${response.statusText}`);
             }
-        }
 
-        loadRandomOutline();
+            const xmlText = await response.text();
+            console.log('Received XML:', xmlText.substring(0, 500) + '...'); // Log first 500 chars
+            
+            const keys = await parseS3ListXML(xmlText);
+            console.log('Parsed keys:', keys);
+            
+            // Filter for JSON files
+            const jsonFiles = keys.filter(key => 
+                key.includes('/processed_outlines/') && 
+                key.endsWith('.json')
+            );
+            console.log('Found JSON files:', jsonFiles);
+            
+            if (jsonFiles.length === 0) {
+                throw new Error('No processed outlines found');
+            }
+
+            // Pick a random file
+            const randomIndex = Math.floor(Math.random() * jsonFiles.length);
+            const selectedKey = jsonFiles[randomIndex];
+            
+            // Fetch the selected outline data
+            const outlineUrl = `${BASE_URL}/${selectedKey}`;
+            console.log('Fetching outline from:', outlineUrl);
+            
+            const outlineResponse = await fetch(outlineUrl);
+            if (!outlineResponse.ok) {
+                console.error('Outline response not OK:', outlineResponse.status, outlineResponse.statusText);
+                const text = await outlineResponse.text();
+                console.log('Error response:', text);
+                throw new Error(`Failed to fetch outline: ${outlineResponse.statusText}`);
+            }
+
+            const data = await outlineResponse.json();
+            console.log('Received outline data:', data);
+            
+            setOutlineData(data);
+            setError(null);
+            
+        } catch (err) {
+            console.error('Error loading outline:', err);
+            setError(err instanceof Error ? err.message : 'Failed to load outline');
+        } finally {
+            setIsLoading(false);
+        }
     }, []);
+
+    // Initial load
+    useEffect(() => {
+        loadRandomOutline();
+    }, [loadRandomOutline]);
+
+    const refreshOutline = useCallback(() => {
+        loadRandomOutline();
+    }, [loadRandomOutline]);
 
     return {
         outlineData,
         isLoading,
-        error
+        error,
+        refreshOutline
     };
 }
