@@ -2,12 +2,22 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import FlowerFiller from '../components/FlowerFiller';
+
+interface ProcessedFlowerData {
+    vertices: [number, number][];
+    bounds: {
+        minX: number;
+        minY: number;
+        maxX: number;
+        maxY: number;
+    };
+    spoutPoints: [number, number][];
+}
 
 const TEST_OUTLINE_URL = 'https://flower-filler-bucket.s3.us-west-2.amazonaws.com/flower_dataset/processed_outlines/flower_00000001.json';
 
 export default function TestPage() {
-    const [outlineData, setOutlineData] = useState(null);
+    const [outlineData, setOutlineData] = useState<ProcessedFlowerData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -23,7 +33,7 @@ export default function TestPage() {
                 }
 
                 const data = await response.json();
-                console.log('Received outline data:', data);
+                console.log('Outline loaded:', data);
                 setOutlineData(data);
                 
             } catch (err) {
@@ -41,5 +51,14 @@ export default function TestPage() {
     if (error) return <div>Error: {error}</div>;
     if (!outlineData) return <div>No data loaded</div>;
 
-    return <FlowerFiller processedData={outlineData} />;
+    return (
+        <svg width={600} height={400}>
+            <path
+                d={`M ${outlineData.vertices.map(p => p.join(',')).join(' L ')} Z`}
+                fill="none"
+                stroke="black"
+                strokeWidth="2"
+            />
+        </svg>
+    );
 }
